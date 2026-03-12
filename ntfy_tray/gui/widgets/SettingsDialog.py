@@ -105,7 +105,7 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
 
         self.label_app_version.setText(__version__)
         self.label_qt_version.setText(QtCore.QT_VERSION_STR)
-        self.label_app_icon.setPixmap(QtGui.QIcon(get_image("logo.ico")).pixmap(22,22))
+        self.label_app_icon.setPixmap(QtGui.QIcon(get_image("ntfy.png")).pixmap(22,22))
         self.label_qt_icon.setPixmap(QtGui.QIcon(get_image("qt.png")).pixmap(22,22))
 
     def add_message_widget(self):

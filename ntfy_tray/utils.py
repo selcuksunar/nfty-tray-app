@@ -99,11 +99,24 @@ def get_image(name: str) -> str:
     return get_abs_path(f"ntfy_tray/gui/images/{name}")
 
 
-def get_icon(name: str) -> str:
-    if platform.system() == "Darwin":
-        name += "-macos"
+# Maps legacy icon names to the current image files
+_ICON_MAP = {
+    "tray":         "ntfy.png",
+    "tray-macos":   "ntfy.png",
+    "tray-unread":  "ntfy.png",
+    "tray-unread-macos": "ntfy.png",
+    "tray-error":   "ntfy-error.png",
+    "tray-error-macos": "ntfy-error.png",
+    "ntfy-small":   "ntfy.png",
+    "ntfy-small-macos": "ntfy.png",
+    "logo":         "ntfy.ico",
+    "logo-macos":   "ntfy.icns",
+}
 
-    return get_abs_path(f"ntfy_tray/gui/images/{name}.png")
+
+def get_icon(name: str) -> str:
+    filename = _ICON_MAP.get(name, f"{name}.png")
+    return get_abs_path(f"ntfy_tray/gui/images/{filename}")
 
 def update_widget_property(widget: QtWidgets.QWidget, property: str, value: str):
     widget.setProperty(property, value)

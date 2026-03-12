@@ -8,7 +8,7 @@ block_cipher = None
 is_mac = platform.system() == "Darwin"
 is_win = platform.system() == "Windows"
 
-logo = "ntfy_tray/gui/images/logo-macos.ico" if is_mac else "ntfy_tray/gui/images/logo.ico"
+logo = "ntfy_tray/gui/images/ntfy.icns" if is_mac else "ntfy_tray/gui/images/ntfy.ico"
 
 a = Analysis(
     ['ntfy_tray/__main__.py'],
