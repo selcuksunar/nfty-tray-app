@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=ntfy Tray
+Comment=A tray notification application for receiving messages from a ntfy server.
+Path=/opt/ntfy-tray
+Exec=/opt/ntfy-tray/ntfy-tray
+Icon=/usr/share/icons/ntfy-tray.ico
+Terminal=false
+Type=Application
+Categories=Network;

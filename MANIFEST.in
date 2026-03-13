@@ -1,0 +1,8 @@
+include README.md version.txt
+include ntfy_tray/gui/images/*.png
+include ntfy_tray/gui/images/*.svg
+include ntfy_tray/gui/themes/base.qss
+include ntfy_tray/gui/themes/dark/*.svg
+include ntfy_tray/gui/themes/dark/*.qss
+include ntfy_tray/gui/themes/light/*.svg
+include ntfy_tray/gui/themes/light/*.qss
