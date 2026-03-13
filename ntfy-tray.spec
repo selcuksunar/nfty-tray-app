@@ -70,5 +70,6 @@ if is_mac:
             'NSHighResolutionCapable': True,
             'LSUIElement': True,
             'CFBundleShortVersionString': '1.0.0',
+            'LSMinimumSystemVersion': '12.0',
         },
     )

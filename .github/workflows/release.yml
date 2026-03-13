@@ -70,7 +70,9 @@ jobs:
         pip install pyinstaller Pillow pyobjc-core pyobjc-framework-Cocoa
 
     - name: Build with PyInstaller
-      run: pyinstaller ntfy-tray.spec
+      run: |
+        export MACOSX_DEPLOYMENT_TARGET=12.0
+        pyinstaller ntfy-tray.spec
 
     - name: Create DMG
       run: |
