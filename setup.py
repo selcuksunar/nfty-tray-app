@@ -15,7 +15,7 @@ with open("version.txt", "r") as f:
 
 # What packages are required for this module to be executed?
 REQUIRED = [
-    'requests', 'pyqt6>=6.7.1', 'websocket-client>=1.0.0'
+    'requests', 'pyqt6>=6.7.1', 'websocket-client>=1.0.0', 'emoji>=2.0.0'
 ]
 
 # What packages are optional?

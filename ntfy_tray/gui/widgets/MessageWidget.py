@@ -8,8 +8,9 @@ from ..models.MessagesModel import MessageItemDataRole, MessagesModelItem
 from ..designs.widget_message import Ui_Form
 from ntfy_tray.database import Downloader
 from ntfy_tray.database import Settings
-from ntfy_tray.utils import convert_links, extract_image, update_widget_property
+from ntfy_tray.utils import convert_links, extract_image, tags_to_emojis, update_widget_property
 from ntfy_tray.gui.themes import get_theme_file
+from ntfy_tray.ntfy import models as ntfy_models
 from ntfy_tray.ntfy.models import NtfyMessageModel
 
 
@@ -24,7 +25,6 @@ class MessageWidget(QtWidgets.QWidget, Ui_Form):
         self,
         parent: QtWidgets.QWidget,
         message_item: MessagesModelItem,
-        icon: QtGui.QIcon | None = None,
     ):
         super(MessageWidget, self).__init__(parent)
         self.setupUi(self)
@@ -38,8 +38,11 @@ class MessageWidget(QtWidgets.QWidget, Ui_Form):
         # Display the message priority as a color
         self.set_priority_color(message.priority)
 
-        # Display message contents
-        self.label_title.setText(message.title)
+        # Display message contents — prepend ntfy tags as emoji
+        tags = message.get("tags") or []
+        emoji_prefix = tags_to_emojis(tags)
+        title_text = message.title or ""
+        self.label_title.setText((emoji_prefix + " " + title_text).strip() if emoji_prefix else title_text)
 
         if settings.value("locale", type=bool):
             date_str = QtCore.QLocale.system().toString(message.date, QtCore.QLocale.FormatType.ShortFormat)
@@ -58,31 +61,88 @@ class MessageWidget(QtWidgets.QWidget, Ui_Form):
             filename = downloader.get_filename(image_url)
             self.set_message_image(filename)
         else:
-            self.label_message.setText(convert_links(message.message))
+            cleaned = message.message.rstrip().replace("\r\n", "\n").replace("\r", "\n")
+            self.label_message.setText(convert_links(cleaned))
 
-        # Show the application icon
-        if icon:
-            image_size = settings.value("MessageWidget/image/size", type=int)
-            pixmap = icon.pixmap(QtCore.QSize(image_size, image_size))
-            self.label_image.setPixmap(pixmap)
+        # Show per-message icon (ntfy icon field) if present
+        icon_url = message.get("icon")
+        if icon_url:
+            downloader = Downloader()
+            filename = downloader.get_filename(icon_url)
+            if filename:
+                image_size = settings.value("MessageWidget/image/size", type=int)
+                pixmap = QtGui.QPixmap(filename).scaled(
+                    QtCore.QSize(image_size, image_size),
+                    aspectRatioMode=QtCore.Qt.AspectRatioMode.KeepAspectRatio,
+                    transformMode=QtCore.Qt.TransformationMode.SmoothTransformation,
+                )
+                self.label_image.setPixmap(pixmap)
+            else:
+                self.label_image.hide()
         else:
             self.label_image.hide()
 
-        # Set MessagesModelItem's size hint based on the size of this widget
+        # Set MessagesModelItem's size hint based on the size of this widget.
+        # Resize to the actual viewport width BEFORE adjustSize() so that word-wrap
+        # labels (label_title, label_message) compute the correct height for the real
+        # display width instead of the design-file default of 454 px.
         self.gridLayout_frame.setContentsMargins(0, 0, 5, 0)
         self.gridLayout.setContentsMargins(4, 5, 4, 0)
-        self.adjustSize()
+
+        viewport_width = parent.viewport().width() if hasattr(parent, "viewport") else 0
+        if viewport_width > 0:
+            self.setFixedWidth(viewport_width)
+            self.gridLayout.activate()
+            margins = self.gridLayout.contentsMargins()
+            frame_w = viewport_width - margins.left() - margins.right()
+            correct_height = (self.gridLayout_frame.heightForWidth(frame_w)
+                              + self.frame.frameWidth() * 2
+                              + margins.top() + margins.bottom())
+        else:
+            self.adjustSize()
+            correct_height = self.height()
+
+        final_height = max(settings.value("MessageWidget/height/min", type=int), correct_height + 15)
+        self.resize(viewport_width or self.width(), final_height)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(16777215)
+
         size_hint = self.message_item.sizeHint()
         self.message_item.setSizeHint(
-            QtCore.QSize(
-                size_hint.width(),
-                max(settings.value("MessageWidget/height/min", type=int), self.height())
-            )
+            QtCore.QSize(size_hint.width(), final_height)
         )
 
         self.set_icons()
 
         self.link_callbacks()
+
+    def recalculate_size_hint(self):
+        parent = self.parent()
+        if hasattr(parent, "viewport"):
+            viewport_width = parent.viewport().width()
+        else:
+            viewport_width = parent.width() if parent else self.width()
+        if viewport_width <= 0:
+            return
+
+        self.setFixedWidth(viewport_width)
+        self.gridLayout.activate()
+        #self.gridLayout_frame.activate()
+        margins = self.gridLayout.contentsMargins()
+        frame_w = viewport_width - margins.left() - margins.right()
+        correct_height = (self.gridLayout_frame.heightForWidth(frame_w)
+                          + self.frame.frameWidth() * 2
+                          + margins.top() + margins.bottom())
+
+        final_height = max(settings.value("MessageWidget/height/min", type=int), correct_height + 15)
+        #self.setFixedHeight(final_height)
+        self.resize(viewport_width, final_height)
+        self.setMinimumWidth(0)
+        self.setMaximumWidth(16777215)
+
+        self.message_item.setSizeHint(QtCore.QSize(
+            self.message_item.sizeHint().width(), final_height-10
+        ))
 
     def set_fonts(self):
         font_title = QtGui.QFont()
@@ -132,9 +192,11 @@ class MessageWidget(QtWidgets.QWidget, Ui_Form):
             self.label_priority.setFixedWidth(0) # set width to 0 instead of hiding, so we still get the content margins
             return
 
-        if priority >= 4 and priority <= 7:
+        self.label_priority.setContentsMargins(0, 0, 4, 0)
+
+        if priority == 4:
             update_widget_property(self.label_priority, "priority", "medium")
-        elif priority > 7:
+        elif priority >= 5:
             update_widget_property(self.label_priority, "priority", "high")
 
     def link_hovered_callback(self, link: str):

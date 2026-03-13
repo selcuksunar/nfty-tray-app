@@ -118,6 +118,27 @@ def get_icon(name: str) -> str:
     filename = _ICON_MAP.get(name, f"{name}.png")
     return get_abs_path(f"ntfy_tray/gui/images/{filename}")
 
+def tags_to_emojis(tags: list) -> str:
+    """Convert ntfy tag shortcodes (e.g. ['tada', 'warning']) to emoji characters.
+    Tries 'alias' (GitHub/Slack style) first, then 'en'. Skips unrecognised tags.
+    """
+    if not tags:
+        return ""
+    try:
+        import emoji as _emoji_lib
+        parts = []
+        for tag in tags:
+            shortcode = f":{tag}:"
+            converted = _emoji_lib.emojize(shortcode, language="alias")
+            if converted == shortcode:
+                converted = _emoji_lib.emojize(shortcode, language="en")
+            if converted != shortcode:
+                parts.append(converted)
+        return " ".join(parts)
+    except ImportError:
+        return ""
+
+
 def update_widget_property(widget: QtWidgets.QWidget, property: str, value: str):
     widget.setProperty(property, value)
     widget.style().unpolish(widget)

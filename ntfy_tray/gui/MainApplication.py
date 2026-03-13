@@ -108,6 +108,8 @@ class MainApplication(QtWidgets.QApplication):
         self.tray.show()
         
         self.first_connect = True
+        self._message_cache: dict = {}
+        self._cache_load_tasks: list = []
 
         self.watchdog = ServerConnectionWatchdogTask(self.ntfy_client)
         
@@ -124,9 +126,59 @@ class MainApplication(QtWidgets.QApplication):
     def set_theme(self):
         set_theme(self)
 
+    def _is_message_deleted(self, msg) -> bool:
+        """Check if a message was previously deleted (persistent)."""
+        # Global cutoff (delete all messages)
+        global_cutoff = settings.value("deleted/all_before", type=int)
+        if global_cutoff and msg.date.toSecsSinceEpoch() <= global_cutoff:
+            return True
+
+        # Per-topic cutoff (delete all messages in a topic)
+        topic = msg.get("appid", "")
+        if topic:
+            topic_cutoff = settings.value(f"deleted/topic_before/{topic}", type=int)
+            if topic_cutoff and msg.date.toSecsSinceEpoch() <= topic_cutoff:
+                return True
+
+        # Individual message deletion
+        deleted_ids = settings.value("deleted/ids", type=list) or []
+        msg_id = str(msg.get("id", ""))
+        if msg_id and msg_id in [str(x) for x in deleted_ids]:
+            return True
+
+        return False
+
+    def _add_to_cache(self, topic: str, msg):
+        """Add message to cache if not deleted."""
+        if not self._is_message_deleted(msg):
+            self._message_cache.setdefault(topic, []).append(msg)
+
+    def _load_all_messages_into_cache(self):
+        """Load messages for all topics once into memory cache."""
+        # Abort existing cache load tasks to prevent duplicate entries
+        for task in self._cache_load_tasks:
+            task.abort()
+            try:
+                task.message.disconnect()
+            except TypeError:
+                pass
+
+        self._message_cache = {}
+        self._cache_load_tasks = []
+        topics = settings.value("Server/topics", type=list)
+        for topic in topics:
+            task = GetApplicationMessagesTask(topic, self.ntfy_client)
+            task.message.connect(
+                lambda msg, t=topic: self._add_to_cache(t, msg)
+            )
+            task.start()
+            self._cache_load_tasks.append(task)
+
     def refresh_applications(self):
         self.messages_model.clear()
         self.application_model.clear()
+        self._message_cache = {}
+        self.first_connect = True
 
         self.application_model.setItem(0, 0, ApplicationAllMessagesItem())
 
@@ -241,18 +293,26 @@ class MainApplication(QtWidgets.QApplication):
         self.ntfy_listener.closed.connect(self.main_window.set_inactive)
         self.ntfy_listener.reconnecting.connect(self.main_window.set_connecting)
         self.ntfy_listener.start()
+        self._load_all_messages_into_cache()
 
     def new_ntfy_message_callback(self, data: dict):
         # Convert ntfy message to NtfyMessageModel for compatibility with GUI
         from ntfy_tray.ntfy.models import NtfyMessageModel
+        topic = data.get("topic")
         msg = NtfyMessageModel({
             "id": data.get("id"),
-            "appid": data.get("topic"),
+            "appid": topic,
             "message": data.get("message", ""),
             "title": data.get("title", ""),
             "priority": data.get("priority") or 3,  # ntfy default priority = 3
-            "date": data.get("time", 0)
+            "date": data.get("time", 0),
+            "icon": data.get("icon"),
+            "attachment": data.get("attachment"),
+            "tags": data.get("tags", []),
         })
+        # Add to cache so future channel selections see the new message
+        if topic:
+            self._message_cache.setdefault(topic, []).append(msg)
         self.new_message_callback(msg)
 
     def abort_get_messages_task(self):
@@ -278,16 +338,38 @@ class MainApplication(QtWidgets.QApplication):
         self.messages_model.clear()
 
         if isinstance(item, ApplicationModelItem):
-            self.get_application_messages_task = GetApplicationMessagesTask(item.data(ApplicationItemDataRole.ApplicationRole).id, self.ntfy_client)
-            self.get_application_messages_task.message.connect(lambda msg: self.messages_model.insert_message(0, msg))
-            self.get_application_messages_task.finished.connect(self.main_window.enable_buttons)
-            self.get_application_messages_task.start()
+            topic = item.data(ApplicationItemDataRole.ApplicationRole).id
+            if topic in self._message_cache:
+                # Sort by date: oldest first, insert at row 0 so newest ends up at top
+                msgs = sorted(self._message_cache[topic], key=lambda m: m.date.toSecsSinceEpoch())
+                for msg in msgs:
+                    self.messages_model.insert_message(0, msg)
+                self.main_window.enable_buttons()
+            else:
+                self.get_application_messages_task = GetApplicationMessagesTask(topic, self.ntfy_client)
+                self.get_application_messages_task.message.connect(
+                    lambda msg: self.messages_model.insert_message(0, msg) if not self._is_message_deleted(msg) else None
+                )
+                self.get_application_messages_task.finished.connect(self.main_window.enable_buttons)
+                self.get_application_messages_task.start()
 
         elif isinstance(item, ApplicationAllMessagesItem):
-            self.get_messages_task = GetMessagesTask(self.ntfy_client)
-            self.get_messages_task.message.connect(lambda msg: self.messages_model.insert_message(0, msg))
-            self.get_messages_task.finished.connect(self.main_window.enable_buttons)
-            self.get_messages_task.start()
+            if self._message_cache:
+                all_msgs = []
+                for msgs in self._message_cache.values():
+                    all_msgs.extend(msgs)
+                # Sort by date: oldest first, insert at row 0 so newest ends up at top
+                all_msgs.sort(key=lambda m: m.date.toSecsSinceEpoch())
+                for msg in all_msgs:
+                    self.messages_model.insert_message(0, msg)
+                self.main_window.enable_buttons()
+            else:
+                self.get_messages_task = GetMessagesTask(self.ntfy_client)
+                self.get_messages_task.message.connect(
+                    lambda msg: self.messages_model.insert_message(0, msg) if not self._is_message_deleted(msg) else None
+                )
+                self.get_messages_task.finished.connect(self.main_window.enable_buttons)
+                self.get_messages_task.start()
 
     def add_message_to_model(self, message: NtfyMessageModel, process: bool = True):
         if self.application_model.itemFromId(message.appid):
@@ -356,25 +438,48 @@ class MainApplication(QtWidgets.QApplication):
 
     def delete_message_callback(self, message_item: MessagesModelItem):
         message = message_item.data(MessageItemDataRole.MessageRole)
+
+        # Persist deletion locally
+        deleted_ids = settings.value("deleted/ids", type=list) or []
+        msg_id = str(message.id)
+        if msg_id not in [str(x) for x in deleted_ids]:
+            deleted_ids.append(msg_id)
+            settings.setValue("deleted/ids", deleted_ids)
+
         self.delete_message_task = DeleteMessageTask(
             message.id, message.appid, self.ntfy_client
         )
         self.messages_model.removeRow(message_item.row())
+        # Remove from cache
+        topic = message.appid
+        if topic in self._message_cache:
+            self._message_cache[topic] = [
+                m for m in self._message_cache[topic] if str(m.get("id")) != msg_id
+            ]
         self.delete_message_task.start()
 
     def delete_all_messages_callback(
         self, item: ApplicationModelItem | ApplicationAllMessagesItem
     ):
+        now = QtCore.QDateTime.currentDateTime().toSecsSinceEpoch()
+
         if isinstance(item, ApplicationModelItem):
+            topic = item.data(ApplicationItemDataRole.ApplicationRole).id
+            # Persist: mark all messages in this topic as deleted
+            settings.setValue(f"deleted/topic_before/{topic}", now)
+            self._message_cache.pop(topic, None)
             self.delete_application_messages_task = DeleteApplicationMessagesTask(
-                item.data(ApplicationItemDataRole.ApplicationRole).id,
+                topic,
                 self.ntfy_client,
             )
             self.delete_application_messages_task.start()
         elif isinstance(item, ApplicationAllMessagesItem):
-            self.clear_cache_task = ClearCacheTask()        
+            # Persist: mark all messages globally as deleted
+            settings.setValue("deleted/all_before", now)
+            self._message_cache = {}
+            self.clear_cache_task = ClearCacheTask()
             self.clear_cache_task.start()
-        
+
             self.delete_all_messages_task = DeleteAllMessagesTask(self.ntfy_client)
             self.delete_all_messages_task.start()
         else:

@@ -73,6 +73,11 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         # unfortunately this cannot be done with designer
         self.pb_refresh.setShortcut(QtGui.QKeySequence(QtGui.QKeySequence.StandardKey.Refresh))
 
+        self._resize_timer = QtCore.QTimer()
+        self._resize_timer.setSingleShot(True)
+        self._resize_timer.timeout.connect(self._recalculate_message_heights)
+        self.listView_messages.viewport().installEventFilter(self)
+
     def set_icons(self):
         # Set button icons
         self.pb_refresh.setIcon(QtGui.QIcon(get_theme_file("refresh.svg")))
@@ -83,8 +88,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.status_widget.setFixedSize(QtCore.QSize(size, size))
 
         size = settings.value("MainWindow/button/size", type=int)
-        self.pb_refresh.setFixedSize(QtCore.QSize(size, size))
-        self.pb_delete_all.setFixedSize(QtCore.QSize(size, size))
+        self.pb_refresh.setFixedSize(QtCore.QSize(size, size+8))
+        self.pb_delete_all.setFixedSize(QtCore.QSize(size, size+8))
         self.pb_refresh.setIconSize(QtCore.QSize(int(0.7 * size), int(0.7 * size)))
         self.pb_delete_all.setIconSize(QtCore.QSize(int(0.9 * size), int(0.9 * size)))
 
@@ -115,7 +120,7 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
 
                 application_item = self.application_model.itemFromId(message.appid)
                 
-                message_widget = MessageWidget(self.listView_messages, message_item, icon=application_item.icon())
+                message_widget = MessageWidget(self.listView_messages, message_item)
                 message_widget.deletion_requested.connect(self.delete_message.emit)
                 message_widget.image_popup.connect(self.image_popup.emit)
                 
@@ -201,7 +206,18 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         e.ignore()
         self.hidden.emit()
 
+    def _recalculate_message_heights(self):
+        for row in range(self.messages_model.rowCount()):
+            index = self.messages_model.index(row, 0)
+            widget = self.listView_messages.indexWidget(index)
+            if isinstance(widget, MessageWidget):
+                widget.recalculate_size_hint()
+        self.listView_messages.scheduleDelayedItemsLayout()
+
     def eventFilter(self, object: QtCore.QObject, event: QtCore.QEvent) -> bool:
+        if object is self.listView_messages.viewport() and event.type() == QtCore.QEvent.Type.Resize:
+            self._resize_timer.start(50)
+
         if event.type() == QtCore.QEvent.Type.WindowActivate:
             self.activated.emit()
 

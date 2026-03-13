@@ -121,7 +121,6 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
                     }
                 )
             ),
-            QtGui.QIcon(get_icon("ntfy-small")),
         )
         self.layout_fonts_message.addWidget(self.message_widget)
 
@@ -140,11 +139,6 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
         """Connect to a signal and set the value_changed attribute for a widget on trigger
         """
         signal.connect(lambda *args: self.setting_changed_callback(widget))
-
-    def apply_topics_url_callback(self):
-        url = self.line_topics_url.text().strip()
-        settings.setValue("Server/topics_url", url)
-        QtWidgets.QMessageBox.information(self, "Saved", "Topics JSON URL saved. Restart or reconnect to apply.")
 
     def change_server_info_callback(self):
         self.server_changed = verify_server(force_new=True, enable_import=False)
@@ -247,7 +241,6 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
 
         # Server info
         self.pb_change_server_info.clicked.connect(self.change_server_info_callback)
-        self.pb_change_topics_url.clicked.connect(self.apply_topics_url_callback)
         self.connect_signal(self.line_topics_url.textChanged, self.line_topics_url)
 
         # Logging

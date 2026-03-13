@@ -136,7 +136,10 @@ class GetApplicationMessagesTask(BaseTask):
                             "message": msg_data.get("message", ""),
                             "title": msg_data.get("title", ""),
                             "priority": msg_data.get("priority") or 3,
-                            "date": msg_data.get("time", 0)
+                            "date": msg_data.get("time", 0),
+                            "icon": msg_data.get("icon"),
+                            "attachment": msg_data.get("attachment"),
+                            "tags": msg_data.get("tags", []),
                         })
                         if not self.abort_requested():
                             self.message.emit(msg)
@@ -185,7 +188,10 @@ class GetMessagesTask(BaseTask):
                                 "message": msg_data.get("message", ""),
                                 "title": msg_data.get("title", ""),
                                 "priority": msg_data.get("priority") or 3,
-                                "date": msg_data.get("time", 0)
+                                "date": msg_data.get("time", 0),
+                                "icon": msg_data.get("icon"),
+                                "attachment": msg_data.get("attachment"),
+                                "tags": msg_data.get("tags", []),
                             })
                             if not self.abort_requested():
                                 self.message.emit(msg)
