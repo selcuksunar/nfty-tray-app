@@ -18,6 +18,7 @@ a = Analysis(
         ('ntfy_tray/gui/images', 'ntfy_tray/gui/images'),
         ('ntfy_tray/gui/themes', 'ntfy_tray/gui/themes'),
         ('ntfy_tray/gui/sounds', 'ntfy_tray/gui/sounds'),
+        ('ntfy_tray/translations', 'ntfy_tray/translations'),
     ],
     hiddenimports=['websocket', 'websocket._core', 'websocket._exceptions', 'objc', 'Foundation'],
     hookspath=[],

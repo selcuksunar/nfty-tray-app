@@ -4,6 +4,7 @@ from ntfy_tray.database import Settings
 from ntfy_tray.ntfy.models import NtfyVersionModel
 from ntfy_tray.tasks import ImportSettingsTask, VerifyServerInfoTask
 from ntfy_tray.utils import update_widget_property
+from ntfy_tray.i18n import tr
 from PyQt6 import QtWidgets, QtNetwork
 
 from ..designs.widget_server import Ui_Dialog
@@ -16,14 +17,14 @@ class ServerInfoDialog(QtWidgets.QDialog, Ui_Dialog):
     def __init__(self, url: str = "", token: str = "", enable_import: bool = True):
         super(ServerInfoDialog, self).__init__()
         self.setupUi(self)
-        self.setWindowTitle("ntfy Server info")
+        self.setWindowTitle(tr("server.title"))
         self.line_url.setPlaceholderText("https://ntfy.sh")
-        self.label_2.setText("Username:")
-        self.line_token.setPlaceholderText("Username")
+        self.label_2.setText(tr("server.username_label"))
+        self.line_token.setPlaceholderText(tr("server.username"))
         self.line_password = QtWidgets.QLineEdit()
-        self.line_password.setPlaceholderText("Password")
+        self.line_password.setPlaceholderText(tr("server.password"))
         self.line_password.setEchoMode(QtWidgets.QLineEdit.EchoMode.Password)
-        self.formLayout.addRow("Password:", self.line_password)
+        self.formLayout.addRow(tr("server.password_label"), self.line_password)
         self.certPath = settings.value("Server/certPath", type=str) or ""
 
         self.line_token.setText(settings.value("Server/username", type=str))
@@ -31,7 +32,7 @@ class ServerInfoDialog(QtWidgets.QDialog, Ui_Dialog):
         self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setDisabled(True)
         self.pb_import.setVisible(enable_import)
         self.pb_certificate.hide()
-        self.label_status.setText(f"Certificate path: {self.certPath}")
+        self.label_status.setText(tr("server.certificate.path").format(path=self.certPath))
         self.label_status.hide()
         self.link_callbacks()
         self.line_url.setText(url)
@@ -111,7 +112,7 @@ class ServerInfoDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def import_callback(self):
         fname = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Import Settings", settings.value("export/path", type=str), "*",
+            self, tr("settings.dialog.import_settings"), settings.value("export/path", type=str), "*",
         )[0]
         if fname and os.path.exists(fname):
             self.import_settings_task = ImportSettingsTask(fname)
@@ -120,18 +121,18 @@ class ServerInfoDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def certificate_callback(self):
         fname = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Import self-signed server certificate", os.path.expanduser("~"), "Certificates (*.pem *.crt);;*",
+            self, tr("server.import_cert"), os.path.expanduser("~"), tr("server.cert_filter"),
         )[0]
         if fname and os.path.exists(fname):
             # Verify the certificate
             if certificate := QtNetwork.QSslCertificate.fromPath(fname):
                 self.certPath = fname
-                self.label_status.setText(f"Certificate path: {self.certPath}")
+                self.label_status.setText(tr("server.certificate.path").format(path=self.certPath))
             else:
-                self.label_status.setText("The supplied certificate is invalid")
+                self.label_status.setText(tr("server.certificate.invalid"))
                 self.certPath = ""
         else:
-            self.label_status.setText("No certificate selected")
+            self.label_status.setText(tr("server.certificate.none"))
             self.certPath = ""
             
         self.input_changed_callback()

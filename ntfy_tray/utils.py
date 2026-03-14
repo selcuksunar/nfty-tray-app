@@ -144,3 +144,88 @@ def update_widget_property(widget: QtWidgets.QWidget, property: str, value: str)
     widget.style().unpolish(widget)
     widget.style().polish(widget)
     widget.update()
+
+
+def _get_executable_path() -> str:
+    """Return the path to the running executable (frozen or script)."""
+    import sys
+    if getattr(sys, 'frozen', False):
+        # PyInstaller bundle
+        if platform.system() == "Darwin":
+            # .app bundle: go up from MacOS/ntfy-tray to .app
+            app_path = Path(sys.executable).resolve()
+            for parent in app_path.parents:
+                if parent.suffix == ".app":
+                    return str(parent)
+            return sys.executable
+        return sys.executable
+    else:
+        return f"{sys.executable} -m ntfy_tray"
+
+
+def set_autostart(enabled: bool):
+    """Enable or disable autostart at login for the current platform."""
+    system = platform.system()
+    exe = _get_executable_path()
+
+    if system == "Darwin":
+        plist_dir = Path.home() / "Library" / "LaunchAgents"
+        plist_path = plist_dir / "com.ntfy-tray.app.plist"
+        if enabled:
+            plist_dir.mkdir(parents=True, exist_ok=True)
+            if exe.endswith(".app"):
+                program_args = f"    <array>\n        <string>/usr/bin/open</string>\n        <string>-a</string>\n        <string>{exe}</string>\n    </array>"
+            else:
+                parts = exe.split(" ")
+                args_xml = "\n".join(f"        <string>{p}</string>" for p in parts)
+                program_args = f"    <array>\n{args_xml}\n    </array>"
+            plist_content = f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.ntfy-tray.app</string>
+    <key>ProgramArguments</key>
+{program_args}
+    <key>RunAtLoad</key>
+    <true/>
+</dict>
+</plist>
+"""
+            plist_path.write_text(plist_content)
+        else:
+            plist_path.unlink(missing_ok=True)
+
+    elif system == "Windows":
+        import winreg
+        key_path = r"Software\Microsoft\Windows\CurrentVersion\Run"
+        try:
+            key = winreg.OpenKey(winreg.HKEY_CURRENT_USER, key_path, 0, winreg.KEY_SET_VALUE)
+            if enabled:
+                winreg.SetValueEx(key, "ntfy-tray", 0, winreg.REG_SZ, exe)
+            else:
+                try:
+                    winreg.DeleteValue(key, "ntfy-tray")
+                except FileNotFoundError:
+                    pass
+            winreg.CloseKey(key)
+        except OSError:
+            pass
+
+    elif system == "Linux":
+        desktop_dir = Path.home() / ".config" / "autostart"
+        desktop_path = desktop_dir / "ntfy-tray.desktop"
+        if enabled:
+            desktop_dir.mkdir(parents=True, exist_ok=True)
+            desktop_content = f"""[Desktop Entry]
+Type=Application
+Name=ntfy Tray
+Exec={exe}
+Icon=ntfy-tray
+Terminal=false
+X-GNOME-Autostart-enabled=true
+"""
+            desktop_path.write_text(desktop_content)
+        else:
+            desktop_path.unlink(missing_ok=True)

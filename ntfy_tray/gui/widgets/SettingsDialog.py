@@ -7,7 +7,8 @@ from ntfy_tray.database import Cache, Settings
 from ntfy_tray.ntfy import models as ntfy_models
 from ntfy_tray.gui.models import MessagesModelItem
 from . import MessageWidget
-from ntfy_tray.utils import get_image, get_icon, verify_server, open_file
+from ntfy_tray.utils import get_image, get_icon, verify_server, open_file, set_autostart
+from ntfy_tray.i18n import tr, load_language, available_languages, current_language
 from ntfy_tray.tasks import (
     ExportSettingsTask,
     ImportSettingsTask,
@@ -27,12 +28,13 @@ settings = Settings("ntfy-tray")
 class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
     quit_requested = QtCore.pyqtSignal()
     style_changed = QtCore.pyqtSignal()
+    language_changed = QtCore.pyqtSignal()
 
     def __init__(self):
         super(SettingsDialog, self).__init__()
         self.setupUi(self)
-        self.setWindowTitle("Settings")
-        
+        self.setWindowTitle(tr("settings.title"))
+
         self.settings_changed = False
         self.changes_applied = False
         self.server_changed = False
@@ -43,6 +45,14 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def initUI(self):
         self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Apply).setEnabled(False)
+
+        # Language
+        langs = available_languages()
+        self._lang_codes = list(langs.keys())
+        self.combo_language.addItems(list(langs.values()))
+        cur_lang = settings.value("language", type=str) or "en"
+        if cur_lang in self._lang_codes:
+            self.combo_language.setCurrentIndex(self._lang_codes.index(cur_lang))
 
         # Notifications
         self.spin_priority.setValue(settings.value("tray/notifications/priority", type=int))
@@ -63,18 +73,19 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
         self.groupBox_sound.setChecked(settings.value("sound/enabled", type=bool))
         if sound_path := settings.value("sound/path"):
             self.line_sound.setText(sound_path)
-        self.line_sound.setToolTip("Optionally, choose a custom sound file")
+        self.line_sound.setToolTip(tr("settings.dialog.sound_choose"))
 
         # Interface
         self.combo_style.addItem("Default")
         self.combo_style.addItems(QtWidgets.QStyleFactory.keys())
         style_override = settings.value("StyleOverride", type=str) or "Default"
         self.combo_style.setCurrentText(style_override)
-        
+
         self.cb_priority_colors.setChecked(settings.value("MessageWidget/priority_color", type=bool))
         self.cb_image_urls.setChecked(settings.value("MessageWidget/image_urls", type=bool))
         self.cb_locale.setChecked(settings.value("locale", type=bool))
         self.cb_sort_applications.setChecked(settings.value("ApplicationModel/sort", type=bool))
+        self.cb_autostart.setChecked(settings.value("autostart/enabled", type=bool))
 
         # Logging
         self.combo_logging.addItems(
@@ -151,7 +162,9 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
     def change_font_callback(self, name: str):
         label: QtWidgets.QLabel = getattr(self.message_widget, "label_" + name)
 
-        font, accepted = QtWidgets.QFontDialog.getFont(label.font(), self, f"Select a {name} font")
+        font, accepted = QtWidgets.QFontDialog.getFont(
+            label.font(), self, tr("settings.fonts.select").format(name=name)
+        )
 
         if accepted:
             self.setting_changed_callback(label)
@@ -159,7 +172,7 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def export_callback(self):
         fname = QtWidgets.QFileDialog.getSaveFileName(
-            self, "Export Settings", settings.value("export/path", type=str), "*",
+            self, tr("settings.dialog.export_settings"), settings.value("export/path", type=str), "*",
         )[0]
         if fname and os.path.exists(os.path.dirname(fname)):
             self.export_settings_task = ExportSettingsTask(fname)
@@ -168,14 +181,14 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
 
     def import_success_callback(self):
         response = QtWidgets.QMessageBox.information(
-            self, "Restart to apply settings", "Restart to apply settings"
+            self, tr("settings.dialog.restart"), tr("settings.dialog.restart")
         )
         if response == QtWidgets.QMessageBox.StandardButton.Ok:
             self.quit_requested.emit()
 
     def import_callback(self):
         fname = QtWidgets.QFileDialog.getOpenFileName(
-            self, "Import Settings", settings.value("export/path", type=str), "*",
+            self, tr("settings.dialog.import_settings"), settings.value("export/path", type=str), "*",
         )[0]
         if fname and os.path.exists(fname):
             self.import_settings_task = ImportSettingsTask(fname)
@@ -185,8 +198,8 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
     def reset_fonts_callback(self):
         response = QtWidgets.QMessageBox.warning(
             self,
-            "Are you sure?",
-            "Reset all fonts?",
+            tr("settings.dialog.reset_fonts.title"),
+            tr("settings.dialog.reset_fonts.text"),
             QtWidgets.QMessageBox.StandardButton.Ok
             | QtWidgets.QMessageBox.StandardButton.Cancel,
             defaultButton=QtWidgets.QMessageBox.StandardButton.Cancel,
@@ -199,8 +212,8 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
     def reset_callback(self):
         response = QtWidgets.QMessageBox.warning(
             self,
-            "Are you sure?",
-            "Reset all settings?",
+            tr("settings.dialog.reset_settings.title"),
+            tr("settings.dialog.reset_settings.text"),
             QtWidgets.QMessageBox.StandardButton.Ok
             | QtWidgets.QMessageBox.StandardButton.Cancel,
             defaultButton=QtWidgets.QMessageBox.StandardButton.Cancel,
@@ -215,12 +228,18 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
         self.label_cache.setText("0 MB")
 
     def select_sound_callback(self):
-        fname = QtWidgets.QFileDialog.getOpenFileName(self, "Optionally, choose a custom sound file", os.path.expanduser("~"), "Audio Files (*.wav *.oga *.mp3 *.aac *.flac)")[0]
+        fname = QtWidgets.QFileDialog.getOpenFileName(
+            self, tr("settings.dialog.sound_choose"), os.path.expanduser("~"),
+            tr("settings.dialog.sound_filter")
+        )[0]
         if fname and os.path.exists(fname):
             self.line_sound.setText(fname)
-        
+
     def link_callbacks(self):
         self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Apply).clicked.connect(self.apply_settings)
+
+        # Language
+        self.connect_signal(self.combo_language.currentIndexChanged, self.combo_language)
 
         # Notifications
         self.connect_signal(self.spin_priority.valueChanged, self.spin_priority)
@@ -238,6 +257,7 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
         self.connect_signal(self.cb_locale.stateChanged, self.cb_locale)
         self.connect_signal(self.cb_sort_applications.stateChanged, self.cb_sort_applications)
         self.connect_signal(self.combo_style.currentTextChanged, self.combo_style)
+        self.connect_signal(self.cb_autostart.stateChanged, self.cb_autostart)
 
         # Server info
         self.pb_change_server_info.clicked.connect(self.change_server_info_callback)
@@ -267,6 +287,17 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
         self.connect_signal(self.spin_watchdog_interval.valueChanged, self.spin_watchdog_interval)
 
     def apply_settings(self):
+        # Language
+        if hasattr(self.combo_language, "value_changed"):
+            idx = self.combo_language.currentIndex()
+            if 0 <= idx < len(self._lang_codes):
+                new_lang = self._lang_codes[idx]
+                settings.setValue("language", new_lang)
+                load_language(new_lang)
+                self.retranslateUi(self)
+                self.setWindowTitle(tr("settings.title"))
+                self.language_changed.emit()
+
         # Priority
         self.set_value("tray/notifications/priority", self.spin_priority.value(), self.spin_priority)
         self.set_value("tray/notifications/duration_ms", self.spin_duration.value(), self.spin_duration)
@@ -285,6 +316,10 @@ class SettingsDialog(QtWidgets.QDialog, Ui_Dialog):
         if selected_style != settings.value("StyleOverride", type=str):
             self.set_value("StyleOverride", selected_style, self.combo_style)
             self.style_changed.emit()
+        if hasattr(self.cb_autostart, "value_changed"):
+            autostart_enabled = self.cb_autostart.isChecked()
+            self.set_value("autostart/enabled", autostart_enabled, self.cb_autostart)
+            set_autostart(autostart_enabled)
 
         # Logging
         selected_level = self.combo_logging.currentText()

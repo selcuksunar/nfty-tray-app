@@ -24,6 +24,7 @@ from ntfy_tray.tasks import (
 )
 from ntfy_tray.gui.themes import set_theme
 from ntfy_tray.utils import get_icon, verify_server
+from ntfy_tray.i18n import load_language
 from PyQt6 import QtCore, QtGui, QtWidgets, QtMultimedia
 
 from ..__version__ import __title__
@@ -75,6 +76,10 @@ def _request_macos_notification_permission():
 
 class MainApplication(QtWidgets.QApplication):
     def init_ui(self):
+        # Load language before creating any UI
+        lang = settings.value("language", type=str) or "en"
+        load_language(lang)
+
         _request_macos_notification_permission()
         self.ntfy_client = ntfy.NtfyClient(
             settings.value("Server/url", type=str),
@@ -122,6 +127,9 @@ class MainApplication(QtWidgets.QApplication):
 
         if settings.value("watchdog/enabled", type=bool):
             self.watchdog.start()
+
+        if settings.value("autostart/enabled", type=bool):
+            utils.set_autostart(True)
 
     def set_theme(self):
         set_theme(self)
@@ -510,11 +518,17 @@ class MainApplication(QtWidgets.QApplication):
             message_widget: MessageWidget = self.main_window.listView_messages.indexWidget(self.messages_model.index(r, 0))
             message_widget.set_icons()
 
+    def language_changed_callback(self):
+        """Update all UI elements when language changes."""
+        self.tray.retranslate()
+        self.main_window.retranslate()
+
     def settings_callback(self):
         from .widgets import SettingsDialog
         dialog = SettingsDialog()
+        dialog.language_changed.connect(self.language_changed_callback)
         dialog.exec()
-        
+
         # Handle audio settings if changed
         if hasattr(dialog, 'settings_changed') and dialog.settings_changed:
             if self.audio:

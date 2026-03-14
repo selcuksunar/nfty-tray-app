@@ -5,6 +5,7 @@ import enum
 from PyQt6 import QtCore, QtGui
 from ntfy_tray.ntfy import models as ntfy_models
 from ntfy_tray.database import Settings
+from ntfy_tray.i18n import tr
 
 
 settings = Settings("ntfy-tray")
@@ -44,7 +45,7 @@ class ApplicationModelItem(QtGui.QStandardItem):
 
 class ApplicationAllMessagesItem(QtGui.QStandardItem):
     def __init__(self, *args, **kwargs):
-        super(ApplicationAllMessagesItem, self).__init__("ALL MESSAGES")
+        super(ApplicationAllMessagesItem, self).__init__(tr("app.all_messages"))
         self.setDropEnabled(False)
         self.setDragEnabled(False)
         if s := settings.value("ApplicationItem/font", type=str):

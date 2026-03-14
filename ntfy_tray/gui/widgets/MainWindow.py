@@ -13,6 +13,7 @@ from ntfy_tray.database import Settings
 from ntfy_tray.gui.themes import get_theme_file
 from ntfy_tray.gui.models import MessageItemDataRole
 from ntfy_tray.ntfy import models as ntfy_models
+from ntfy_tray.i18n import tr
 
 
 settings = Settings("ntfy-tray")
@@ -62,8 +63,8 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
         self.label_application.setFont(font_title)
 
         # Set tooltips
-        self.pb_refresh.setToolTip("Refresh")
-        self.pb_delete_all.setToolTip("Delete all messages")
+        self.pb_refresh.setToolTip(tr("main.refresh"))
+        self.pb_delete_all.setToolTip(tr("main.delete_all"))
 
         self.restore_state()
 
@@ -136,13 +137,17 @@ class MainWindow(QtWidgets.QMainWindow, Ui_MainWindow):
             self.label_application.setText(item.text())
             self.application_selection_changed.emit(item)
 
+    def retranslate(self):
+        self.pb_refresh.setToolTip(tr("main.refresh"))
+        self.pb_delete_all.setToolTip(tr("main.delete_all"))
+
     def delete_all_callback(self):
         if (
             self.messages_model.rowCount() == 0
             or QtWidgets.QMessageBox.warning(
                 self,
-                "Are you sure?",
-                "Delete all messages?",
+                tr("main.delete_all.title"),
+                tr("main.delete_all.text"),
                 QtWidgets.QMessageBox.StandardButton.Ok
                 | QtWidgets.QMessageBox.StandardButton.Cancel,
                 defaultButton=QtWidgets.QMessageBox.StandardButton.Cancel,

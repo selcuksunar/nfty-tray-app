@@ -40,4 +40,6 @@ DEFAULT_SETTINGS = {
     "Server/password": "",
     "Server/topics": [],
     "Server/topics_url": "",
+    "autostart/enabled": True,
+    "language": "en",
 }

@@ -9,6 +9,7 @@ from ..designs.widget_message import Ui_Form
 from ntfy_tray.database import Downloader
 from ntfy_tray.database import Settings
 from ntfy_tray.utils import convert_links, extract_image, tags_to_emojis, update_widget_property
+from ntfy_tray.i18n import tr
 from ntfy_tray.gui.themes import get_theme_file
 from ntfy_tray.ntfy import models as ntfy_models
 from ntfy_tray.ntfy.models import NtfyMessageModel
@@ -47,7 +48,7 @@ class MessageWidget(QtWidgets.QWidget, Ui_Form):
         if settings.value("locale", type=bool):
             date_str = QtCore.QLocale.system().toString(message.date, QtCore.QLocale.FormatType.ShortFormat)
         else:
-            date_str = message.date.toString("yyyy-MM-dd, hh:mm")
+            date_str = message.date.toString(tr("date.format"))
         self.label_date.setText(date_str)
 
         if message.get("extras", {}).get("client::display", {}).get("contentType") == "text/markdown":

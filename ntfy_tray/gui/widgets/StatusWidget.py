@@ -2,6 +2,7 @@ from PyQt6 import QtCore, QtGui, QtWidgets
 
 from ntfy_tray.database import Settings
 from ntfy_tray.gui.themes import get_theme_file
+from ntfy_tray.i18n import tr
 
 
 settings = Settings("ntfy-tray")
@@ -20,19 +21,19 @@ class StatusWidget(QtWidgets.QLabel):
         self.setPixmap(QtGui.QPixmap(get_theme_file(image)))
 
     def set_active(self):
-        self.setToolTip("Listening for new messages")
+        self.setToolTip(tr("status.active"))
         self.set_status("status_active.svg")
 
     def set_connecting(self):
-        self.setToolTip("Connecting...")
+        self.setToolTip(tr("status.connecting"))
         self.set_status("status_connecting.svg")
 
     def set_inactive(self):
-        self.setToolTip("Listener inactive")
+        self.setToolTip(tr("status.inactive"))
         self.set_status("status_inactive.svg")
 
     def set_error(self):
-        self.setToolTip("Listener error")
+        self.setToolTip(tr("status.error"))
         self.set_status("status_error.svg")
 
     def refresh(self):

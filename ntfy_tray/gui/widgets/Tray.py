@@ -3,6 +3,7 @@ import logging
 from PyQt6 import QtGui, QtWidgets
 from ntfy_tray.__version__ import __title__
 from ntfy_tray.utils import get_icon
+from ntfy_tray.i18n import tr
 
 
 logger = logging.getLogger("ntfy-tray")
@@ -23,25 +24,31 @@ class Tray(QtWidgets.QSystemTrayIcon):
         # Tray menu items
         menu = QtWidgets.QMenu()
 
-        self.actionShowWindow = QtGui.QAction("Show Window", self)
+        self.actionShowWindow = QtGui.QAction(tr("tray.show_window"), self)
         menu.addAction(self.actionShowWindow)
 
         menu.addSeparator()
 
-        self.actionSettings = QtGui.QAction("Settings", self)
+        self.actionSettings = QtGui.QAction(tr("tray.settings"), self)
         menu.addAction(self.actionSettings)
 
         menu.addSeparator()
 
-        self.actionReconnect = QtGui.QAction("Reconnect", self)
+        self.actionReconnect = QtGui.QAction(tr("tray.reconnect"), self)
         menu.addAction(self.actionReconnect)
 
         menu.addSeparator()
 
-        self.actionQuit = QtGui.QAction("Quit", self)
+        self.actionQuit = QtGui.QAction(tr("tray.quit"), self)
         menu.addAction(self.actionQuit)
 
         self.setContextMenu(menu)
+
+    def retranslate(self):
+        self.actionShowWindow.setText(tr("tray.show_window"))
+        self.actionSettings.setText(tr("tray.settings"))
+        self.actionReconnect.setText(tr("tray.reconnect"))
+        self.actionQuit.setText(tr("tray.quit"))
 
     def set_icon_ok(self):
         self.icon_error = False

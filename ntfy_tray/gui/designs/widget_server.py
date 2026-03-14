@@ -7,6 +7,7 @@
 
 
 from PyQt6 import QtCore, QtGui, QtWidgets
+from ntfy_tray.i18n import tr
 
 
 class Ui_Dialog(object):
@@ -62,14 +63,14 @@ class Ui_Dialog(object):
         QtCore.QMetaObject.connectSlotsByName(Dialog)
 
     def retranslateUi(self, Dialog):
-        _translate = QtCore.QCoreApplication.translate
-        Dialog.setWindowTitle(_translate("Dialog", "Dialog"))
-        self.pb_test.setText(_translate("Dialog", "Test"))
-        self.pb_import.setToolTip(_translate("Dialog", "Import settings"))
-        self.pb_import.setText(_translate("Dialog", "..."))
-        self.label.setText(_translate("Dialog", "Server url:"))
-        self.label_2.setText(_translate("Dialog", "Client token:"))
-        self.pb_certificate.setText(_translate("Dialog", "Certificate"))
+        self.pb_test.setText(tr("server.test"))
+        self.pb_import.setToolTip(tr("server.import_settings"))
+        self.pb_import.setText("...")
+        self.label.setText(tr("server.url"))
+        self.label_2.setText(tr("server.username_label"))
+        self.pb_certificate.setText(tr("server.certificate"))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Ok).setText(tr("button.ok"))
+        self.buttonBox.button(QtWidgets.QDialogButtonBox.StandardButton.Cancel).setText(tr("button.cancel"))
 
 
 if __name__ == "__main__":

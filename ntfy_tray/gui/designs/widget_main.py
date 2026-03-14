@@ -7,6 +7,7 @@
 
 
 from PyQt6 import QtCore, QtGui, QtWidgets
+from ntfy_tray.i18n import tr
 
 
 class Ui_MainWindow(object):
