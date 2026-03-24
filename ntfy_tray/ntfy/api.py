@@ -3,6 +3,7 @@ import json
 import requests
 import logging
 from ntfy_tray.database import Settings
+from ntfy_tray.database.downloader import _get_certifi_path
 from ntfy_tray.ntfy.listener import _apply_auth
 
 logger = logging.getLogger("ntfy-tray")
@@ -15,6 +16,7 @@ class NtfyClient:
         self.username = username
         self.password = password
         self.session = requests.Session()
+        self.session.verify = _get_certifi_path()
         _apply_auth(self.session, username, password)
 
     def get_subscriptions(self) -> list[dict] | None:

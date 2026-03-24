@@ -2,6 +2,7 @@
 
 import os
 import platform
+import certifi
 
 block_cipher = None
 
@@ -19,6 +20,7 @@ a = Analysis(
         ('ntfy_tray/gui/themes', 'ntfy_tray/gui/themes'),
         ('ntfy_tray/gui/sounds', 'ntfy_tray/gui/sounds'),
         ('ntfy_tray/translations', 'ntfy_tray/translations'),
+        (certifi.where(), 'certifi'),
     ],
     hiddenimports=['websocket', 'websocket._core', 'websocket._exceptions', 'objc', 'Foundation'],
     hookspath=[],

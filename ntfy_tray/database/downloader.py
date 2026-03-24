@@ -1,5 +1,6 @@
 import logging
 import os
+import sys
 import requests
 
 from .cache import Cache
@@ -10,13 +11,30 @@ logger = logging.getLogger("ntfy-tray")
 settings = Settings("ntfy-tray")
 
 
+def _get_certifi_path() -> str:
+    """Get the certifi CA bundle path, works both in dev and PyInstaller builds."""
+    if getattr(sys, 'frozen', False):
+        bundle_dir = sys._MEIPASS
+        frozen_cert = os.path.join(bundle_dir, 'certifi', 'cacert.pem')
+        if os.path.exists(frozen_cert):
+            return frozen_cert
+    try:
+        import certifi
+        return certifi.where()
+    except ImportError:
+        pass
+    return True  # requests default
+
+
 class Downloader(object):
     def __init__(self):
         self.cache = Cache()
         self.session = requests.Session()
         certfile = settings.value("Server/certPath", type=str)
-        if os.path.exists(certfile):
+        if certfile and os.path.exists(certfile):
             self.session.verify = certfile
+        else:
+            self.session.verify = _get_certifi_path()
 
     def get(self, url: str) -> requests.Response:
         """
