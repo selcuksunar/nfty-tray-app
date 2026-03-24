@@ -6,8 +6,8 @@ VSVersionInfo(
     ffi=FixedFileInfo(
         # filevers and prodvers should be always a tuple with four items: (1, 2, 3, 4)
         # Set not needed items to zero 0.
-        filevers=(0, 5, 3, 0),
-        prodvers=(0, 5, 3, 0),
+        filevers=(1, 1, 0, 0),
+        prodvers=(1, 1, 0, 0),
         # Contains a bitmask that specifies the valid bits 'flags'r
         mask=0x3F,
         # Contains a bitmask that specifies the Boolean attributes of the file.
@@ -31,15 +31,15 @@ VSVersionInfo(
                 StringTable(
                     u"040904B0",
                     [
-                        StringStruct(u"Comments", u"Gotify Tray"),
+                        StringStruct(u"Comments", u"ntfy Tray"),
                         StringStruct(u"CompanyName", u""),
-                        StringStruct(u"FileDescription", u"Gotifiy Tray"),
-                        StringStruct(u"FileVersion", u"0.5.3"),
+                        StringStruct(u"FileDescription", u"ntfy Tray"),
+                        StringStruct(u"FileVersion", u"1.1.0"),
                         StringStruct(u"InternalName", u"ntfy-tray"),
                         StringStruct(u"LegalCopyright", u""),
                         StringStruct(u"OriginalFilename", u"ntfy-tray.exe"),
-                        StringStruct(u"ProductName", u"Gotify Tray"),
-                        StringStruct(u"ProductVersion", u"0.5.3"),
+                        StringStruct(u"ProductName", u"ntfy Tray"),
+                        StringStruct(u"ProductVersion", u"1.1.0"),
                     ],
                 )
             ]

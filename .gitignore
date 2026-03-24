@@ -8,6 +8,9 @@ inno-output
 
 config.json
 *.log
-*.exevenv/
-dist/
-build/
+*.exe
+
+venv/
+.DS_Store
+*.dmg
+.claude/
