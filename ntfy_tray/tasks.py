@@ -351,10 +351,14 @@ class CheckUpdateTask(BaseTask):
                 return
 
             data = response.json()
-            latest_tag = data.get("tag_name", "").lstrip("v")
-            current = self.current_version.lstrip("v")
+            def parse_version(v: str):
+                try:
+                    return tuple(int(x) for x in v.lstrip("v").split("."))
+                except ValueError:
+                    return (0,)
 
-            if not latest_tag or latest_tag <= current:
+            latest_tag = data.get("tag_name", "")
+            if not latest_tag or parse_version(latest_tag) <= parse_version(self.current_version):
                 self.no_update.emit()
                 return
 
@@ -371,7 +375,7 @@ class CheckUpdateTask(BaseTask):
                     break
 
             if download_url:
-                self.update_available.emit(f"v{latest_tag}", download_url)
+                self.update_available.emit(latest_tag, download_url)
             else:
                 self.no_update.emit()
 
