@@ -5,3 +5,4 @@ from .ServerInfoDialog import ServerInfoDialog
 from .SettingsDialog import SettingsDialog
 from .StatusWidget import StatusWidget
 from .Tray import Tray
+from .UpdateDialog import UpdateDialog

@@ -13,6 +13,7 @@ from ntfy_tray.__version__ import __title__
 from ntfy_tray.database import Downloader, Settings
 from ntfy_tray.tasks import (
     ClearCacheTask,
+    CheckUpdateTask,
     DeleteApplicationMessagesTask,
     DeleteAllMessagesTask,
     DeleteMessageTask,
@@ -124,6 +125,9 @@ class MainApplication(QtWidgets.QApplication):
 
         # Start applications refresh with a small delay to ensure GUI is ready
         QtCore.QTimer.singleShot(100, self.refresh_applications)
+
+        # Check for updates 5 seconds after startup
+        QtCore.QTimer.singleShot(5000, self.check_for_updates)
 
         if settings.value("watchdog/enabled", type=bool):
             self.watchdog.start()
@@ -517,6 +521,17 @@ class MainApplication(QtWidgets.QApplication):
         for r in range(self.messages_model.rowCount()):
             message_widget: MessageWidget = self.main_window.listView_messages.indexWidget(self.messages_model.index(r, 0))
             message_widget.set_icons()
+
+    def check_for_updates(self):
+        from ntfy_tray.__version__ import __version__
+        self._update_task = CheckUpdateTask(__version__, platform.system().lower())
+        self._update_task.update_available.connect(self._on_update_available)
+        self._update_task.start()
+
+    def _on_update_available(self, latest_version: str, download_url: str):
+        from .widgets.UpdateDialog import UpdateDialog
+        dialog = UpdateDialog(latest_version, download_url, self.main_window)
+        dialog.exec()
 
     def language_changed_callback(self):
         """Update all UI elements when language changes."""

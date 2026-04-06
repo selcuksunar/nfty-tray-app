@@ -103,5 +103,15 @@
 
     "app.all_messages": "ALL MESSAGES",
 
-    "date.format": "yyyy-MM-dd, hh:mm"
+    "date.format": "yyyy-MM-dd, hh:mm",
+
+    "update.title": "Update Available",
+    "update.message": "A new version {version} is available. Would you like to update now?",
+    "update.install": "Update Now",
+    "update.later": "Later",
+    "update.close": "Close",
+    "update.downloading": "Downloading...",
+    "update.installing": "Installing...",
+    "update.error": "Download failed. Please try again later.",
+    "update.manual": "Automatic install is not supported on this platform. Please download manually."
 }

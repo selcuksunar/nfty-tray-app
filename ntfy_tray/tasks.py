@@ -329,3 +329,77 @@ class ClearCacheTask(BaseTask):
         cache = Cache()
         cache.clear()
         
+
+
+class CheckUpdateTask(BaseTask):
+    update_available = pyqtSignal(str, str)  # (latest_version, download_url)
+    no_update = pyqtSignal()
+
+    RELEASES_API = "https://api.github.com/repos/selcuksunar/nfty-tray-app/releases/latest"
+
+    def __init__(self, current_version: str, platform: str):
+        super(CheckUpdateTask, self).__init__()
+        self.current_version = current_version
+        self.platform = platform  # "darwin" | "windows" | "linux"
+
+    def task(self):
+        import requests
+        try:
+            response = requests.get(self.RELEASES_API, timeout=10)
+            if not response.ok:
+                self.no_update.emit()
+                return
+
+            data = response.json()
+            latest_tag = data.get("tag_name", "").lstrip("v")
+            current = self.current_version.lstrip("v")
+
+            if not latest_tag or latest_tag <= current:
+                self.no_update.emit()
+                return
+
+            # Find the right asset for this platform
+            assets = data.get("assets", [])
+            download_url = ""
+            for asset in assets:
+                name = asset["name"].lower()
+                if self.platform == "darwin" and name.endswith(".dmg"):
+                    download_url = asset["browser_download_url"]
+                    break
+                elif self.platform == "windows" and "installer" in name and name.endswith(".exe"):
+                    download_url = asset["browser_download_url"]
+                    break
+
+            if download_url:
+                self.update_available.emit(f"v{latest_tag}", download_url)
+            else:
+                self.no_update.emit()
+
+        except Exception as e:
+            logger.error(f"CheckUpdateTask failed: {e}")
+            self.no_update.emit()
+
+
+class DownloadUpdateTask(BaseTask):
+    progress = pyqtSignal(int)  # 0-100
+    finished = pyqtSignal(str)  # local file path
+
+    def __init__(self, url: str, dest_path: str):
+        super(DownloadUpdateTask, self).__init__()
+        self.url = url
+        self.dest_path = dest_path
+
+    def task(self):
+        import requests
+        response = requests.get(self.url, stream=True, timeout=60)
+        total = int(response.headers.get("content-length", 0))
+        downloaded = 0
+        with open(self.dest_path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=8192):
+                if self.abort_requested():
+                    return
+                f.write(chunk)
+                downloaded += len(chunk)
+                if total:
+                    self.progress.emit(int(downloaded * 100 / total))
+        self.finished.emit(self.dest_path)

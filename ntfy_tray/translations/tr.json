@@ -103,5 +103,15 @@
 
     "app.all_messages": "TÜM MESAJLAR",
 
-    "date.format": "dd.MM.yyyy, hh:mm"
+    "date.format": "dd.MM.yyyy, hh:mm",
+
+    "update.title": "Güncelleme Mevcut",
+    "update.message": "Yeni bir sürüm {version} mevcut. Şimdi güncellemek ister misiniz?",
+    "update.install": "Şimdi Güncelle",
+    "update.later": "Sonra",
+    "update.close": "Kapat",
+    "update.downloading": "İndiriliyor...",
+    "update.installing": "Yükleniyor...",
+    "update.error": "İndirme başarısız. Lütfen daha sonra tekrar deneyin.",
+    "update.manual": "Bu platformda otomatik kurulum desteklenmiyor. Lütfen manuel olarak indirin."
 }
