@@ -74,12 +74,44 @@ jobs:
         export MACOSX_DEPLOYMENT_TARGET=12.0
         pyinstaller ntfy-tray.spec
 
+    - name: Import signing certificate
+      env:
+        MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+        MACOS_CERTIFICATE_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+      run: |
+        echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+        security create-keychain -p temp1234 build.keychain
+        security default-keychain -s build.keychain
+        security unlock-keychain -p temp1234 build.keychain
+        security import certificate.p12 -k build.keychain -P "$MACOS_CERTIFICATE_PASSWORD" -T /usr/bin/codesign
+        security set-key-partition-list -S apple-tool:,apple: -s -k temp1234 build.keychain
+
+    - name: Sign app bundle
+      run: |
+        codesign --deep --force --verify --verbose \
+          --sign "Developer ID Application" \
+          --options runtime \
+          dist/ntfy-tray.app
+
     - name: Create DMG
       run: |
         mkdir -p dmg-stage
         cp -R dist/ntfy-tray.app dmg-stage/
         ln -s /Applications dmg-stage/Applications
         hdiutil create -volname "ntfy-tray" -srcfolder dmg-stage -ov -format UDZO ntfy-tray-macos-arm64.dmg
+
+    - name: Notarize DMG
+      env:
+        APPLE_ID: ${{ secrets.APPLE_ID }}
+        APPLE_APP_PASSWORD: ${{ secrets.APPLE_APP_PASSWORD }}
+        APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      run: |
+        xcrun notarytool submit ntfy-tray-macos-arm64.dmg \
+          --apple-id "$APPLE_ID" \
+          --password "$APPLE_APP_PASSWORD" \
+          --team-id "$APPLE_TEAM_ID" \
+          --wait
+        xcrun stapler staple ntfy-tray-macos-arm64.dmg
 
     - name: Upload DMG
       uses: actions/upload-artifact@v4
