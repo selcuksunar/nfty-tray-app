@@ -669,7 +669,36 @@ def start_gui():
 
     init_logger(logger)
 
+    # Handle .ntfy config file passed as argument (Windows / Linux)
+    config_file_path = None
+    for arg in sys.argv[1:]:
+        if arg.endswith(".ntfy") and not arg.startswith("-"):
+            config_file_path = arg
+            break
+
+    if config_file_path:
+        from ntfy_tray.config_file import apply_config_file
+        apply_config_file(config_file_path)
+
     # prevent multiple instances
     if (app.acquire_lock() or "--no-lock" in sys.argv) and verify_server():
         app.init_ui()
+
+        # Handle .ntfy config file opened via macOS Finder (file open event)
+        app.fileOpenRequest.connect(lambda path: _handle_file_open(app, path))
+
         sys.exit(app.exec())
+
+
+def _handle_file_open(app: MainApplication, path: str):
+    """Handle macOS Finder file open event for .ntfy files."""
+    if not path.endswith(".ntfy"):
+        return
+    from ntfy_tray.config_file import apply_config_file
+    from PyQt6 import QtWidgets
+    if apply_config_file(path):
+        QtWidgets.QMessageBox.information(
+            app.main_window,
+            "ntfy Tray",
+            f"Configuration applied from:\n{path}\n\nRestart to connect with new settings.",
+        )

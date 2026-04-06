@@ -42,6 +42,12 @@ Source: ".\dist\ntfy-tray\*"; DestDir: "{app}"; Flags: ignoreversion recursesubd
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
+[Registry]
+Root: HKCU; Subkey: "Software\Classes\.ntfy"; ValueType: string; ValueName: ""; ValueData: "NtfyTrayConfig"; Flags: uninsdeletevalue
+Root: HKCU; Subkey: "Software\Classes\NtfyTrayConfig"; ValueType: string; ValueName: ""; ValueData: "ntfy Tray Configuration"; Flags: uninsdeletekey
+Root: HKCU; Subkey: "Software\Classes\NtfyTrayConfig\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: "{app}\{#MyAppExeName},0"
+Root: HKCU; Subkey: "Software\Classes\NtfyTrayConfig\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
+
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent unchecked
 

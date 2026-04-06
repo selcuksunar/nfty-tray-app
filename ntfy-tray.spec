@@ -72,7 +72,25 @@ if is_mac:
         info_plist={
             'NSHighResolutionCapable': True,
             'LSUIElement': True,
-            'CFBundleShortVersionString': '1.0.0',
+            'CFBundleShortVersionString': '1.2.0',
             'LSMinimumSystemVersion': '12.0',
+            'CFBundleDocumentTypes': [
+                {
+                    'CFBundleTypeName': 'ntfy Tray Configuration',
+                    'CFBundleTypeExtensions': ['ntfy'],
+                    'CFBundleTypeRole': 'Editor',
+                    'LSHandlerRank': 'Owner',
+                }
+            ],
+            'UTExportedTypeDeclarations': [
+                {
+                    'UTTypeIdentifier': 'com.ntfy-tray.config',
+                    'UTTypeDescription': 'ntfy Tray Configuration',
+                    'UTTypeConformsTo': ['public.json'],
+                    'UTTypeTagSpecification': {
+                        'public.filename-extension': ['ntfy'],
+                    },
+                }
+            ],
         },
     )
