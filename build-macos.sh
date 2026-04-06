@@ -7,12 +7,14 @@ export MACOSX_DEPLOYMENT_TARGET=12.0
 
 ARCH=$(uname -m)
 if [ "$ARCH" = "x86_64" ]; then
-    DMG_NAME="ntfy-tray-macos-x86_64.dmg"
+    DMG_NAME="build/ntfy-tray-macos-x86_64.dmg"
 elif [ "$ARCH" = "arm64" ]; then
-    DMG_NAME="ntfy-tray-macos-arm64.dmg"
+    DMG_NAME="build/ntfy-tray-macos-arm64.dmg"
 else
-    DMG_NAME="ntfy-tray-macos-${ARCH}.dmg"
+    DMG_NAME="build/ntfy-tray-macos-${ARCH}.dmg"
 fi
+
+mkdir -p build
 
 echo "=== ntfy-tray macOS Builder ==="
 echo "Arch: $ARCH"
@@ -20,7 +22,8 @@ echo "Output: $DMG_NAME"
 echo ""
 
 # Temizle
-rm -rf build dist dmg-stage "$DMG_NAME"
+rm -rf dist dmg-stage "$DMG_NAME"
+mkdir -p build
 
 # Derle
 echo ">>> PyInstaller ile derleniyor..."

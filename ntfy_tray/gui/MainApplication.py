@@ -76,12 +76,41 @@ def _request_macos_notification_permission():
 
 
 class MainApplication(QtWidgets.QApplication):
+    def event(self, e):
+        """Handle macOS Finder file open events (QFileOpenEvent)."""
+        if e.type() == QtCore.QEvent.Type.FileOpen:
+            path = e.file()
+            if path.endswith(".ntfy") and hasattr(self, "main_window"):
+                from ntfy_tray.config_file import apply_config_file
+                applied = apply_config_file(path)
+                if applied:
+                    self._reinit_client()
+                    username = settings.value('Server/username', type=str)
+                    QtWidgets.QMessageBox.information(
+                        self.main_window,
+                        "ntfy Tray",
+                        f"{username} için yapılandırma uygulandı.",
+                    )
+                    QtCore.QTimer.singleShot(200, self.refresh_applications)
+            return True
+        return super().event(e)
+
+    def _reinit_client(self):
+        """Recreate NtfyClient with current settings credentials."""
+        settings.sync()
+        self.ntfy_client = ntfy.NtfyClient(
+            settings.value("Server/url", type=str),
+            settings.value("Server/username", type=str),
+            settings.value("Server/password", type=str)
+        )
+
     def init_ui(self):
         # Load language before creating any UI
         lang = settings.value("language", type=str) or "en"
         load_language(lang)
 
         _request_macos_notification_permission()
+        settings.sync()
         self.ntfy_client = ntfy.NtfyClient(
             settings.value("Server/url", type=str),
             settings.value("Server/username", type=str),
@@ -676,29 +705,21 @@ def start_gui():
             config_file_path = arg
             break
 
+    config_applied = False
     if config_file_path:
         from ntfy_tray.config_file import apply_config_file
-        apply_config_file(config_file_path)
+        config_applied = apply_config_file(config_file_path)
 
     # prevent multiple instances
     if (app.acquire_lock() or "--no-lock" in sys.argv) and verify_server():
         app.init_ui()
 
-        # Handle .ntfy config file opened via macOS Finder (file open event)
-        app.fileOpenRequest.connect(lambda path: _handle_file_open(app, path))
+        if config_applied:
+            username = settings.value('Server/username', type=str)
+            QtWidgets.QMessageBox.information(
+                app.main_window,
+                "ntfy Tray",
+                f"{username} için yapılandırma uygulandı.",
+            )
 
         sys.exit(app.exec())
-
-
-def _handle_file_open(app: MainApplication, path: str):
-    """Handle macOS Finder file open event for .ntfy files."""
-    if not path.endswith(".ntfy"):
-        return
-    from ntfy_tray.config_file import apply_config_file
-    from PyQt6 import QtWidgets
-    if apply_config_file(path):
-        QtWidgets.QMessageBox.information(
-            app.main_window,
-            "ntfy Tray",
-            f"Configuration applied from:\n{path}\n\nRestart to connect with new settings.",
-        )

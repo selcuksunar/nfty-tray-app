@@ -242,12 +242,17 @@ class VerifyServerInfoTask(BaseTask):
     def task(self):
         try:
             ntfy_client = ntfy.NtfyClient(self.url, self.username, self.password)
-            result = ntfy_client.get_subscriptions()
-
-            if result is not None:
+            response = ntfy_client.session.get(
+                f"{ntfy_client.url}/v1/account",
+                timeout=10,
+            )
+            if response.status_code in (401, 403):
+                self.incorrect_credentials.emit()
+            elif response.ok or response.status_code == 404:
+                # 404 means server exists but endpoint not found (older ntfy) — still reachable
                 self.success.emit()
             else:
-                self.incorrect_credentials.emit()
+                self.incorrect_url.emit()
         except Exception as e:
             logger.error(f"VerifyServerInfoTask error: {e}")
             self.incorrect_url.emit()

@@ -44,5 +44,5 @@ def apply_config_file(path: str) -> bool:
         settings.setValue("language", lang)
         load_language(lang)
 
-    logger.info(f"Config file applied: {path}")
+    settings.sync()
     return True
