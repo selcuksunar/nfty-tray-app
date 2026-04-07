@@ -163,6 +163,98 @@ def _get_executable_path() -> str:
         return f"{sys.executable} -m ntfy_tray"
 
 
+def _get_machine_id() -> str:
+    """Return a hardware-based machine identifier."""
+    system = platform.system()
+    try:
+        if system == "Darwin":
+            out = subprocess.check_output(
+                ["ioreg", "-rd1", "-c", "IOPlatformExpertDevice"],
+                stderr=subprocess.DEVNULL
+            ).decode()
+            for line in out.splitlines():
+                if "IOPlatformUUID" in line:
+                    return line.split('"')[-2]
+        elif system == "Windows":
+            import winreg
+            key = winreg.OpenKey(
+                winreg.HKEY_LOCAL_MACHINE,
+                r"SOFTWARE\Microsoft\Cryptography"
+            )
+            value, _ = winreg.QueryValueEx(key, "MachineGuid")
+            winreg.CloseKey(key)
+            return value
+    except Exception:
+        pass
+    return "unknown"
+
+
+def _get_notification_permission() -> str:
+    """Return notification permission status: authorized / denied / unknown."""
+    system = platform.system()
+    try:
+        if system == "Darwin":
+            import plistlib
+            plist_path = Path.home() / "Library" / "Preferences" / "com.apple.ncprefs.plist"
+            if not plist_path.exists():
+                return "unknown"
+            raw = subprocess.check_output(
+                ["plutil", "-convert", "xml1", "-o", "-", str(plist_path)],
+                stderr=subprocess.DEVNULL
+            )
+            data = plistlib.loads(raw)
+            for entry in data.get("apps", []):
+                bundle = entry.get("bundle-id", "")
+                if "ntfy-tray" in bundle or "ntfytray" in bundle.lower():
+                    # flags bit 1 = notifications disabled
+                    flags = entry.get("flags", 0)
+                    return "denied" if (flags & 1) else "authorized"
+            # App not in list = never opened notification center = notDetermined
+            return "notDetermined"
+
+        elif system == "Windows":
+            import winreg
+            # Check system-level "quiet hours" / notifications master switch
+            try:
+                key = winreg.OpenKey(
+                    winreg.HKEY_CURRENT_USER,
+                    r"SOFTWARE\Microsoft\Windows\CurrentVersion\Notifications\Settings\ntfy-tray"
+                )
+                value, _ = winreg.QueryValueEx(key, "Enabled")
+                winreg.CloseKey(key)
+                return "authorized" if value == 1 else "denied"
+            except FileNotFoundError:
+                # Key not present = user hasn't explicitly disabled, treat as authorized
+                return "authorized"
+    except Exception:
+        pass
+    return "unknown"
+
+
+def build_api_headers() -> dict:
+    """Build standard headers to include in API requests."""
+    from ntfy_tray.__version__ import __version__
+    from ntfy_tray.database import Settings
+
+    settings = Settings("ntfy-tray")
+    system = platform.system()
+    platform_name = {"Darwin": "macos", "Windows": "windows", "Linux": "linux"}.get(system, system.lower())
+    username = settings.value("Server/username", type=str) or ""
+    language = settings.value("language", type=str) or "en"
+    machine_id = _get_machine_id()
+    notif_permission = _get_notification_permission() if system in ("Darwin", "Windows") else "null"
+
+    return {
+        "User-Agent": f"ntfy-tray/{__version__} ({platform_name})",
+        "X-App-Version": __version__,
+        "X-Platform": platform_name,
+        "X-Username": username,
+        "X-Language": language,
+        "X-Machine-Id": machine_id,
+        "X-Notification-Permission": notif_permission,
+    }
+
+
 def set_autostart(enabled: bool):
     """Enable or disable autostart at login for the current platform."""
     system = platform.system()

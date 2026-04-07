@@ -26,7 +26,8 @@ class NtfyClient:
             return None  # None = config error → use saved topics
 
         try:
-            response = self.session.get(topics_url, timeout=10)
+            from ntfy_tray.utils import build_api_headers
+            response = self.session.get(topics_url, timeout=10, headers=build_api_headers())
             if not response.ok:
                 logger.error(f"Failed to fetch topics JSON: {response.status_code}")
                 return None
