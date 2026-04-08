@@ -28,9 +28,13 @@ jobs:
         pip install pyinstaller
 
     - name: Build with PyInstaller
+      run: pyinstaller ntfy-tray.spec
+
+    - name: Cleanup generated version files
       run: |
-        pyinstaller ntfy-tray.spec
-        rm -f version.py version.txt
+        if (Test-Path version.py) { Remove-Item version.py }
+        if (Test-Path version.txt) { Remove-Item version.txt }
+      shell: pwsh
 
 
     - name: Create installer with Inno Setup
