@@ -1,3 +1,6 @@
 requests
 pyqt6>=6.7.1
 websocket-client>=1.0.0
+certifi
+emoji
+Pillow
