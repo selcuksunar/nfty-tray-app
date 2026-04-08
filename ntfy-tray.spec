@@ -62,7 +62,7 @@ a = Analysis(
         ('ntfy_tray/translations', 'ntfy_tray/translations'),
         (certifi.where(), 'certifi'),
     ],
-    hiddenimports=['websocket', 'websocket._core', 'websocket._exceptions', 'objc', 'Foundation'],
+    hiddenimports=['websocket', 'websocket._core', 'websocket._exceptions', 'objc', 'Foundation', 'UserNotifications'],
     hookspath=[],
     runtime_hooks=[],
     excludes=[],
