@@ -103,16 +103,6 @@ coll = COLLECT(
     name='ntfy-tray',
 )
 
-# Cleanup auto-generated version files
-import atexit
-def _cleanup_version_files():
-    for f in ("version.py", "version.txt"):
-        try:
-            os.remove(f)
-        except OSError:
-            pass
-atexit.register(_cleanup_version_files)
-
 if is_mac:
     app = BUNDLE(
         coll,

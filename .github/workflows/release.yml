@@ -28,7 +28,9 @@ jobs:
         pip install pyinstaller
 
     - name: Build with PyInstaller
-      run: pyinstaller ntfy-tray.spec
+      run: |
+        pyinstaller ntfy-tray.spec
+        rm -f version.py version.txt
 
 
     - name: Create installer with Inno Setup
@@ -74,6 +76,7 @@ jobs:
       run: |
         export MACOSX_DEPLOYMENT_TARGET=12.0
         pyinstaller ntfy-tray.spec
+        rm -f version.py version.txt
 
     - name: Import signing certificate
       env:
