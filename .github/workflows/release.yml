@@ -30,15 +30,14 @@ jobs:
     - name: Build with PyInstaller
       run: pyinstaller ntfy-tray.spec
 
+    - name: Create installer with Inno Setup
+      run: iscc ntfy-tray.iss
+
     - name: Cleanup generated version files
       run: |
         if (Test-Path version.py) { Remove-Item version.py }
         if (Test-Path version.txt) { Remove-Item version.txt }
       shell: pwsh
-
-
-    - name: Create installer with Inno Setup
-      run: iscc ntfy-tray.iss
 
     - name: Upload installer
       uses: actions/upload-artifact@v4
