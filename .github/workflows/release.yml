@@ -7,6 +7,11 @@ on:
         description: 'Tag to build and release (e.g. v1.0)'
         required: true
         type: string
+      prerelease:
+        description: 'Mark as pre-release (beta)'
+        required: false
+        type: boolean
+        default: false
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -148,6 +153,8 @@ jobs:
         tag_name: ${{ inputs.tag }}
         name: ${{ inputs.tag }}
         generate_release_notes: true
+        prerelease: ${{ inputs.prerelease }}
+        make_latest: ${{ inputs.prerelease == false }}
         files: |
           artifacts/ntfy-tray-windows-installer/ntfy-tray-installer.exe
           artifacts/ntfy-tray-windows-portable/ntfy-tray-windows-portable.zip
