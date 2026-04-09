@@ -31,6 +31,10 @@ def set_theme(app: QtWidgets.QApplication):
 
     if style_override := settings.value("StyleOverride", type=str):
         app.setStyle(style_override)
+    elif platform.system() == "Darwin" and "macos" in [k.lower() for k in QtWidgets.QStyleFactory.keys()]:
+        app.setStyle(next(k for k in QtWidgets.QStyleFactory.keys() if k.lower() == "macos"))
+    elif platform.system() == "Windows" and "windowsvista" in [k.lower() for k in QtWidgets.QStyleFactory.keys()]:
+        app.setStyle(next(k for k in QtWidgets.QStyleFactory.keys() if k.lower() == "windowsvista"))
     elif platform.system() == "Linux" and "Breeze" in QtWidgets.QStyleFactory.keys():
         app.setStyle("Breeze")
     else:
