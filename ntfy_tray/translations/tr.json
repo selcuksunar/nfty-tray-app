@@ -113,5 +113,7 @@
     "update.downloading": "İndiriliyor...",
     "update.installing": "Yükleniyor...",
     "update.error": "İndirme başarısız. Lütfen daha sonra tekrar deneyin.",
-    "update.manual": "Bu platformda otomatik kurulum desteklenmiyor. Lütfen manuel olarak indirin."
+    "update.manual": "Bu platformda otomatik kurulum desteklenmiyor. Lütfen manuel olarak indirin.",
+
+    "config.applied": "{username} için yapılandırma uygulandı."
 }

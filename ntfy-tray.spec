@@ -65,7 +65,6 @@ a = Analysis(
     hiddenimports=[
         'websocket', 'websocket._core', 'websocket._exceptions',
         'objc', 'Foundation', 'UserNotifications',
-        'AppKit', 'Cocoa',
     ],
     hookspath=[],
     runtime_hooks=[],

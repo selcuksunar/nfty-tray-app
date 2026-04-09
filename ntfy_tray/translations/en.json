@@ -113,5 +113,7 @@
     "update.downloading": "Downloading...",
     "update.installing": "Installing...",
     "update.error": "Download failed. Please try again later.",
-    "update.manual": "Automatic install is not supported on this platform. Please download manually."
+    "update.manual": "Automatic install is not supported on this platform. Please download manually.",
+
+    "config.applied": "Configuration applied for {username}."
 }

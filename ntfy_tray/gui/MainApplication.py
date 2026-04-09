@@ -9,7 +9,6 @@ import tempfile
 
 from ntfy_tray import ntfy
 from ntfy_tray import utils
-from ntfy_tray.__version__ import __title__
 from ntfy_tray.database import Downloader, Settings
 from ntfy_tray.tasks import (
     ClearCacheTask,
@@ -25,7 +24,7 @@ from ntfy_tray.tasks import (
 )
 from ntfy_tray.gui.themes import set_theme
 from ntfy_tray.utils import get_icon, verify_server
-from ntfy_tray.i18n import load_language
+from ntfy_tray.i18n import load_language, tr
 from PyQt6 import QtCore, QtGui, QtWidgets, QtMultimedia
 
 from ..__version__ import __title__
@@ -62,33 +61,22 @@ def init_logger(logger: logging.Logger):
 
 
 def _request_macos_notification_permission():
-    """Request macOS notification permission via UNUserNotificationCenter (pyobjc)."""
+    """Request macOS notification permission via UNUserNotificationCenter (pyobjc).
+
+    We only request authorization — we do NOT set a custom delegate.
+    Qt6 sets its own UNUserNotificationCenterDelegate internally for QSystemTrayIcon.showMessage().
+    Overwriting that delegate would break Qt's notification delivery.
+    """
     if platform.system() != "Darwin":
         return
     try:
         import ctypes
-        import objc
-        from Foundation import NSObject
-
-        # Explicitly load UserNotifications framework so Objective-C classes are available
+        # Explicitly load UserNotifications framework so UNUserNotificationCenter class is available
         ctypes.cdll.LoadLibrary("/System/Library/Frameworks/UserNotifications.framework/UserNotifications")
 
+        import objc
         UNUserNotificationCenter = objc.lookUpClass("UNUserNotificationCenter")
-        UNUserNotificationCenterDelegate = objc.protocolNamed("UNUserNotificationCenterDelegate")
-
-        class _NotificationDelegate(NSObject, protocols=[UNUserNotificationCenterDelegate]):
-            def userNotificationCenter_willPresentNotification_withCompletionHandler_(
-                self, center, notification, handler
-            ):
-                # Show notification even when app is in foreground: banner + sound
-                handler(3)
-
         center = UNUserNotificationCenter.currentNotificationCenter()
-
-        # Keep delegate alive for the lifetime of the app
-        _request_macos_notification_permission._delegate = _NotificationDelegate.alloc().init()
-        center.setDelegate_(_request_macos_notification_permission._delegate)
-
         # options: alert=4, sound=2, badge=1  →  7 = all
         center.requestAuthorizationWithOptions_completionHandler_(7, lambda granted, error: None)
     except Exception as e:
@@ -109,7 +97,7 @@ class MainApplication(QtWidgets.QApplication):
                     QtWidgets.QMessageBox.information(
                         self.main_window,
                         "ntfy Tray",
-                        f"{username} için yapılandırma uygulandı.",
+                        tr("config.applied").format(username=username),
                     )
                     QtCore.QTimer.singleShot(200, self.refresh_applications)
             return True
@@ -489,7 +477,7 @@ class MainApplication(QtWidgets.QApplication):
 
         if settings.value("sound/enabled") and self.audio:
             self.audio.play()
-            
+
         self.tray.showMessage(
             message.title,
             message.message,
@@ -739,7 +727,7 @@ def start_gui():
             QtWidgets.QMessageBox.information(
                 app.main_window,
                 "ntfy Tray",
-                f"{username} için yapılandırma uygulandı.",
+                tr("config.applied").format(username=username),
             )
 
         sys.exit(app.exec())

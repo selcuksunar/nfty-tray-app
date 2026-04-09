@@ -98,6 +98,7 @@ jobs:
         codesign --deep --force --verify --verbose \
           --sign "Developer ID Application" \
           --options runtime \
+          --entitlements entitlements.plist \
           dist/ntfy-tray.app
 
     - name: Create DMG
