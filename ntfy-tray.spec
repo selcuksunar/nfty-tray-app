@@ -113,6 +113,8 @@ if is_mac:
         icon=logo,
         bundle_identifier='com.ntfy-tray.app',
         info_plist={
+            'CFBundleName': 'NTFY Tray',
+            'CFBundleDisplayName': 'NTFY Tray',
             'NSHighResolutionCapable': True,
             'LSUIElement': True,
             'CFBundleShortVersionString': __version__,
