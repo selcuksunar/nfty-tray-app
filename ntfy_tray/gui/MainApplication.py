@@ -73,12 +73,12 @@ def _macos_version() -> tuple:
 def _setup_macos_notifications():
     """Request notification permission via UNUserNotificationCenter on macOS.
 
-    Only needed on macOS 14+ where NSUserNotificationCenter (used by Qt 6.7
-    internally) is no longer reliable. On macOS < 14 we rely on tray.showMessage().
+    Qt 6.7 still uses deprecated NSUserNotificationCenter internally.
+    When running as python3 (dev mode) or as a signed bundle, UNUserNotificationCenter
+    is the only reliable path on all macOS versions — NSUserNotificationCenter is
+    ignored by Notification Center when the sender process has no bundle identity.
     """
     if platform.system() != "Darwin":
-        return
-    if _macos_version() < (14,):
         return
     try:
         import ctypes
@@ -88,7 +88,7 @@ def _setup_macos_notifications():
         import objc
         UNUserNotificationCenter = objc.lookUpClass("UNUserNotificationCenter")
         center = UNUserNotificationCenter.currentNotificationCenter()
-        # None is safe: the completion handler is nullable at the ObjC runtime level
+        # None completion handler is safe at the ObjC runtime level (nullable block)
         center.requestAuthorizationWithOptions_completionHandler_(7, None)
     except Exception as e:
         logger.warning(f"macOS notification permission request failed: {e}")
@@ -491,9 +491,10 @@ class MainApplication(QtWidgets.QApplication):
         if settings.value("sound/enabled") and self.audio:
             self.audio.play()
 
-        if platform.system() == "Darwin" and _macos_version() >= (14,):
-            # macOS 14+: Qt's tray.showMessage uses deprecated NSUserNotificationCenter
-            # which is unreliable on Sonoma and later. Send via UNUserNotificationCenter.
+        if platform.system() == "Darwin":
+            # Qt 6.7 uses deprecated NSUserNotificationCenter internally — unreliable
+            # on all macOS versions when the sender has no bundle identity (python3 dev
+            # mode) or on macOS 14+ (Sonoma). Always use UNUserNotificationCenter directly.
             self._send_macos_notification(message.title or "", message.message or "")
         else:
             self.tray.showMessage(
