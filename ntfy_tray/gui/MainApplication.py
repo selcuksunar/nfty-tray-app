@@ -66,10 +66,14 @@ def _request_macos_notification_permission():
     if platform.system() != "Darwin":
         return
     try:
+        import ctypes
         import objc
         from Foundation import NSObject
 
-        # Create a minimal delegate so macOS accepts the notification center
+        # Explicitly load UserNotifications framework so Objective-C classes are available
+        ctypes.cdll.LoadLibrary("/System/Library/Frameworks/UserNotifications.framework/UserNotifications")
+
+        UNUserNotificationCenter = objc.lookUpClass("UNUserNotificationCenter")
         UNUserNotificationCenterDelegate = objc.protocolNamed("UNUserNotificationCenterDelegate")
 
         class _NotificationDelegate(NSObject, protocols=[UNUserNotificationCenterDelegate]):
@@ -77,9 +81,8 @@ def _request_macos_notification_permission():
                 self, center, notification, handler
             ):
                 # Show notification even when app is in foreground: banner + sound
-                handler(3)  # UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionSound
+                handler(3)
 
-        UNUserNotificationCenter = objc.lookUpClass("UNUserNotificationCenter")
         center = UNUserNotificationCenter.currentNotificationCenter()
 
         # Keep delegate alive for the lifetime of the app
@@ -89,7 +92,7 @@ def _request_macos_notification_permission():
         # options: alert=4, sound=2, badge=1  →  7 = all
         center.requestAuthorizationWithOptions_completionHandler_(7, lambda granted, error: None)
     except Exception as e:
-        logger.debug(f"macOS notification permission request failed: {e}")
+        logger.warning(f"macOS notification permission request failed: {e}")
 
 
 class MainApplication(QtWidgets.QApplication):
