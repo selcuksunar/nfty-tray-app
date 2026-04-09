@@ -95,10 +95,11 @@ jobs:
 
     - name: Sign app bundle
       run: |
+        plutil -lint entitlements.plist
         codesign --deep --force --verify --verbose \
           --sign "Developer ID Application" \
           --options runtime \
-          --entitlements entitlements.plist \
+          --entitlements "$GITHUB_WORKSPACE/entitlements.plist" \
           dist/ntfy-tray.app
 
     - name: Create DMG
