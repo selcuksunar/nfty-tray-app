@@ -1,4 +1,4 @@
-__title__ = "ntfy Tray"
+__title__ = "NTFY Tray"
 __description__ = (
     "A tray notification application for receiving messages from a ntfy server."
 )
