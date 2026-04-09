@@ -16,3 +16,4 @@ venv/
 .claude/
 version.py
 version.txt
+uninstall.sh
