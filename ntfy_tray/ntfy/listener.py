@@ -3,8 +3,10 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import ssl
 import time
 
+import certifi
 import websocket
 from PyQt6 import QtCore
 
@@ -83,10 +85,12 @@ class NtfyListener(QtCore.QThread):
                 full_url = f"{ws_url}?since={last_event_time}"
                 logger.debug(f"ntfy ws: connecting to {full_url}")
 
+                sslopt = {"ca_certs": certifi.where(), "cert_reqs": ssl.CERT_REQUIRED} if full_url.startswith("wss://") else {}
                 self._ws = websocket.create_connection(
                     full_url,
                     header=headers,
-                    timeout=15,      # handshake / connect timeout
+                    timeout=15,
+                    sslopt=sslopt,
                 )
                 self._ws.settimeout(90)  # read timeout per frame (keepalive arrives within ~55s)
 
