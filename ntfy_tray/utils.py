@@ -239,15 +239,21 @@ def build_api_headers() -> dict:
     settings = Settings("ntfy-tray")
     system = platform.system()
     platform_name = {"Darwin": "macos", "Windows": "windows", "Linux": "linux"}.get(system, system.lower())
+    os_version = platform.version() or ""
+    if system == "Darwin":
+        os_version = platform.mac_ver()[0]  # e.g. "14.4.1"
+    elif system == "Windows":
+        os_version = platform.version()     # e.g. "10.0.22631"
+    platform_full = f"{platform_name} {os_version}".strip()
     username = settings.value("Server/username", type=str) or ""
     language = settings.value("language", type=str) or "en"
     machine_id = _get_machine_id()
     notif_permission = _get_notification_permission() if system in ("Darwin", "Windows") else "null"
 
     return {
-        "User-Agent": f"ntfy-tray/{__version__} ({platform_name})",
+        "User-Agent": f"ntfy-tray/{__version__} ({platform_full})",
         "X-App-Version": __version__,
-        "X-Platform": platform_name,
+        "X-Platform": platform_full,
         "X-Username": username,
         "X-Language": language,
         "X-Machine-Id": machine_id,
