@@ -44,6 +44,9 @@ from .widgets import ImagePopup, MainWindow, MessageWidget, SettingsDialog, Tray
 settings = Settings("ntfy-tray")
 logger = logging.getLogger("ntfy-tray")
 
+# Kept alive to prevent garbage collection of the ObjC delegate object
+_macos_notification_delegate = None
+
 
 def init_logger(logger: logging.Logger):
     if (level := settings.value("logging/level", type=str)) != "Disabled":
@@ -60,27 +63,52 @@ def init_logger(logger: logging.Logger):
     )
 
 
-def _request_macos_notification_permission():
-    """Request macOS notification permission via UNUserNotificationCenter (pyobjc).
+def _setup_macos_notifications(click_callback):
+    """Request notification permission and set up click delegate on macOS.
 
-    We only request authorization — we do NOT set a custom delegate.
-    Qt6 sets its own UNUserNotificationCenterDelegate internally for QSystemTrayIcon.showMessage().
-    Overwriting that delegate would break Qt's notification delivery.
+    Qt 6.7 still uses the deprecated NSUserNotificationCenter internally —
+    it has NOT migrated to UNUserNotificationCenter. Therefore:
+      - We send notifications directly via UNUserNotificationCenter (_send_macos_notification).
+      - We set our own UNUserNotificationCenterDelegate safely — Qt does not touch that system.
+      - The delegate calls click_callback() when the user taps a notification.
     """
+    global _macos_notification_delegate
     if platform.system() != "Darwin":
         return
     try:
         import ctypes
-        # Explicitly load UserNotifications framework so UNUserNotificationCenter class is available
-        ctypes.cdll.LoadLibrary("/System/Library/Frameworks/UserNotifications.framework/UserNotifications")
-
+        ctypes.cdll.LoadLibrary(
+            "/System/Library/Frameworks/UserNotifications.framework/UserNotifications"
+        )
         import objc
+        from Foundation import NSObject
+
         UNUserNotificationCenter = objc.lookUpClass("UNUserNotificationCenter")
         center = UNUserNotificationCenter.currentNotificationCenter()
-        # options: alert=4, sound=2, badge=1  →  7 = all
+
+        # Request permission (alert=4, sound=2, badge=1 → 7 = all three)
         center.requestAuthorizationWithOptions_completionHandler_(7, lambda granted, error: None)
+
+        # Define delegate to handle notification clicks
+        class NtfyNotificationDelegate(NSObject):
+            def userNotificationCenter_didReceiveNotificationResponse_withCompletionHandler_(
+                self, center, response, completionHandler
+            ):
+                # Marshal back to Qt main thread before touching any Qt objects
+                QtCore.QTimer.singleShot(0, click_callback)
+                completionHandler()
+
+            def userNotificationCenter_willPresentNotification_withCompletionHandler_(
+                self, center, notification, completionHandler
+            ):
+                # App is in foreground — suppress banner (app already blocks sending
+                # notifications while the main window is active)
+                completionHandler(0)
+
+        _macos_notification_delegate = NtfyNotificationDelegate.alloc().init()
+        center.setDelegate_(_macos_notification_delegate)
     except Exception as e:
-        logger.warning(f"macOS notification permission request failed: {e}")
+        logger.warning(f"macOS notification setup failed: {e}")
 
 
 class MainApplication(QtWidgets.QApplication):
@@ -117,7 +145,6 @@ class MainApplication(QtWidgets.QApplication):
         lang = settings.value("language", type=str) or "en"
         load_language(lang)
 
-        _request_macos_notification_permission()
         settings.sync()
         self.ntfy_client = ntfy.NtfyClient(
             settings.value("Server/url", type=str),
@@ -149,7 +176,11 @@ class MainApplication(QtWidgets.QApplication):
         # Initialize tray first
         self.tray = Tray()
         self.tray.show()
-        
+
+        # Request macOS notification permission and wire up click delegate.
+        # Must happen after the Qt event loop is about to start (tray already created).
+        _setup_macos_notifications(self.tray_notification_clicked_callback)
+
         self.first_connect = True
         self._message_cache: dict = {}
         self._cache_load_tasks: list = []
@@ -478,12 +509,46 @@ class MainApplication(QtWidgets.QApplication):
         if settings.value("sound/enabled") and self.audio:
             self.audio.play()
 
-        self.tray.showMessage(
-            message.title,
-            message.message,
-            icon,
-            msecs=settings.value("tray/notifications/duration_ms", type=int),
-        )
+        if platform.system() == "Darwin":
+            self._send_macos_notification(message.title or "", message.message or "")
+        else:
+            self.tray.showMessage(
+                message.title,
+                message.message,
+                icon,
+                msecs=settings.value("tray/notifications/duration_ms", type=int),
+            )
+
+    def _send_macos_notification(self, title: str, body: str):
+        """Send notification via UNUserNotificationCenter (macOS 10.14+).
+
+        Qt 6.7 still uses the deprecated NSUserNotificationCenter internally,
+        which is unreliable on macOS 14+ (Sonoma) and later. We bypass it and
+        send directly through UNUserNotificationCenter.
+        """
+        try:
+            import ctypes
+            import uuid
+            ctypes.cdll.LoadLibrary(
+                "/System/Library/Frameworks/UserNotifications.framework/UserNotifications"
+            )
+            import objc
+            UNUserNotificationCenter = objc.lookUpClass("UNUserNotificationCenter")
+            UNMutableNotificationContent = objc.lookUpClass("UNMutableNotificationContent")
+            UNNotificationRequest = objc.lookUpClass("UNNotificationRequest")
+
+            content = UNMutableNotificationContent.alloc().init()
+            content.setTitle_(title)
+            content.setBody_(body)
+
+            request = UNNotificationRequest.requestWithIdentifier_content_trigger_(
+                str(uuid.uuid4()), content, None
+            )
+            UNUserNotificationCenter.currentNotificationCenter(
+            ).addNotificationRequest_withCompletionHandler_(request, lambda err: None)
+        except Exception as e:
+            logger.warning(f"macOS notification failed: {e}")
+            self.tray.showMessage(title, body)
 
     def delete_message_callback(self, message_item: MessagesModelItem):
         message = message_item.data(MessageItemDataRole.MessageRole)
