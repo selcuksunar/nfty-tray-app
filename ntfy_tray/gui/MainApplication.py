@@ -67,8 +67,25 @@ def _request_macos_notification_permission():
         return
     try:
         import objc
+        from Foundation import NSObject
+
+        # Create a minimal delegate so macOS accepts the notification center
+        UNUserNotificationCenterDelegate = objc.protocolNamed("UNUserNotificationCenterDelegate")
+
+        class _NotificationDelegate(NSObject, protocols=[UNUserNotificationCenterDelegate]):
+            def userNotificationCenter_willPresentNotification_withCompletionHandler_(
+                self, center, notification, handler
+            ):
+                # Show notification even when app is in foreground: banner + sound
+                handler(3)  # UNNotificationPresentationOptionBanner | UNNotificationPresentationOptionSound
+
         UNUserNotificationCenter = objc.lookUpClass("UNUserNotificationCenter")
         center = UNUserNotificationCenter.currentNotificationCenter()
+
+        # Keep delegate alive for the lifetime of the app
+        _request_macos_notification_permission._delegate = _NotificationDelegate.alloc().init()
+        center.setDelegate_(_request_macos_notification_permission._delegate)
+
         # options: alert=4, sound=2, badge=1  →  7 = all
         center.requestAuthorizationWithOptions_completionHandler_(7, lambda granted, error: None)
     except Exception as e:

@@ -114,6 +114,7 @@ if is_mac:
             'LSUIElement': True,
             'CFBundleShortVersionString': __version__,
             'LSMinimumSystemVersion': '12.0',
+            'NSPrincipalClass': 'NSApplication',
             'CFBundleDocumentTypes': [
                 {
                     'CFBundleTypeName': 'ntfy Tray Configuration',
