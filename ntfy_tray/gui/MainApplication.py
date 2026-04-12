@@ -294,11 +294,10 @@ class MainApplication(QtWidgets.QApplication):
             return QtGui.QIcon(filename) if filename else QtGui.QIcon()
         return QtGui.QIcon(icon_path)
 
-    def update_last_id(self, i):
-        if not isinstance(i, int):
-            return
-        if i > settings.value("message/last", type=int):
-            settings.setValue("message/last", i)
+    def _update_last_time(self, msg_time: int):
+        """Save the unix timestamp of the most recently seen message."""
+        if msg_time and msg_time > (settings.value("message/last_time", type=int) or 0):
+            settings.setValue("message/last_time", msg_time)
 
     def listener_opened_callback(self):
         self.main_window.set_active()
@@ -309,23 +308,18 @@ class MainApplication(QtWidgets.QApplication):
             self.first_connect = False
             return
 
+        # Fetch only messages received after the last known message
+        last_time = settings.value("message/last_time", type=int) or 0
+
         def get_missed_messages_callback(page: NtfyPagedMessagesModel):
-            last_id = settings.value("message/last", type=int)
-            ids = []
-
-            page.messages.reverse()
+            # API already filtered by 'since', every returned message is new
             for message in page.messages:
-                if not isinstance(message.id, int) or message.id > last_id:
-                    if settings.value("message/check_missed/notify", type=bool):
-                        self.new_message_callback(message, process=False)
-                    else:
-                        self.add_message_to_model(message, process=False)
-                    ids.append(message.id)
+                if settings.value("message/check_missed/notify", type=bool):
+                    self.new_message_callback(message, process=False)
+                else:
+                    self.add_message_to_model(message, process=False)
 
-            if ids:
-                self.update_last_id(max(ids))
-
-        self.get_missed_messages_task = GetMessagesTask(self.ntfy_client)
+        self.get_missed_messages_task = GetMessagesTask(self.ntfy_client, since=last_time)
         self.get_missed_messages_task.success.connect(get_missed_messages_callback)
         self.get_missed_messages_task.start()
 
@@ -361,17 +355,20 @@ class MainApplication(QtWidgets.QApplication):
         # Convert ntfy message to NtfyMessageModel for compatibility with GUI
         from ntfy_tray.ntfy.models import NtfyMessageModel
         topic = data.get("topic")
+        msg_time = data.get("time", 0)
         msg = NtfyMessageModel({
             "id": data.get("id"),
             "appid": topic,
             "message": data.get("message", ""),
             "title": data.get("title", ""),
             "priority": data.get("priority") or 3,  # ntfy default priority = 3
-            "date": data.get("time", 0),
+            "date": msg_time,
             "icon": data.get("icon"),
             "attachment": data.get("attachment"),
             "tags": data.get("tags", []),
         })
+        # Track the timestamp so reconnect fetches only newer messages
+        self._update_last_time(msg_time)
         # Add to cache so future channel selections see the new message
         if topic:
             self._message_cache.setdefault(topic, []).append(msg)
@@ -522,9 +519,12 @@ class MainApplication(QtWidgets.QApplication):
             UNMutableNotificationContent = objc.lookUpClass("UNMutableNotificationContent")
             UNNotificationRequest = objc.lookUpClass("UNNotificationRequest")
 
+            UNNotificationSound = objc.lookUpClass("UNNotificationSound")
+
             content = UNMutableNotificationContent.alloc().init()
             content.setTitle_(title)
             content.setBody_(body)
+            content.setSound_(UNNotificationSound.defaultSound())
 
             request = UNNotificationRequest.requestWithIdentifier_content_trigger_(
                 str(uuid.uuid4()), content, None

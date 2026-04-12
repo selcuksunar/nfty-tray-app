@@ -109,7 +109,7 @@ coll = COLLECT(
 if is_mac:
     app = BUNDLE(
         coll,
-        name='ntfy-tray.app',
+        name='NTFY Tray.app',
         icon=logo,
         bundle_identifier='com.ntfy-tray.app',
         info_plist={

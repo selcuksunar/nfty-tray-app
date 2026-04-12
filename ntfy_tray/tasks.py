@@ -155,27 +155,29 @@ class GetMessagesTask(BaseTask):
     success = pyqtSignal(ntfy_models.NtfyPagedMessagesModel)
     error = pyqtSignal(ntfy_models.NtfyErrorModel)
 
-    def __init__(self, ntfy_client: ntfy.NtfyClient):
+    def __init__(self, ntfy_client: ntfy.NtfyClient, since: int = 0):
         super(GetMessagesTask, self).__init__()
         self.ntfy_client = ntfy_client
+        # since=0 means fetch all; otherwise unix timestamp
+        self.since = str(since) if since else "all"
 
     def task(self):
         """Fetch messages for all topics"""
         try:
             # Get all topics from settings
             topics = settings.value("Server/topics", type=list)
-            
+
             if not topics:
                 logger.info("No topics found for fetching messages")
                 return
-                
+
             # Fetch messages for each topic
             all_messages = []
             for topic in topics:
                 if self.abort_requested():
                     break
-                    
-                messages_data = self.ntfy_client.get_messages(topic)
+
+                messages_data = self.ntfy_client.get_messages(topic, since=self.since)
                 
                 if messages_data is not None:
                     # Convert to NtfyMessageModel objects

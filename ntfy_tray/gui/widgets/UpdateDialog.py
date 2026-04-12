@@ -75,13 +75,14 @@ class UpdateDialog(QtWidgets.QDialog):
     def _install(self, path: str):
         system = platform.system()
         if system == "Darwin":
-            # Mount DMG, copy .app, restart
+            # Mount DMG, copy new app, remove old bundle if present, restart
             subprocess.Popen([
                 "bash", "-c",
                 f'hdiutil attach "{path}" -mountpoint /tmp/ntfy-update-mnt && '
-                f'cp -R /tmp/ntfy-update-mnt/ntfy-tray.app /Applications/ && '
+                f'cp -R "/tmp/ntfy-update-mnt/NTFY Tray.app" /Applications/ && '
+                f'rm -rf /Applications/ntfy-tray.app && '
                 f'hdiutil detach /tmp/ntfy-update-mnt && '
-                f'open /Applications/ntfy-tray.app'
+                f'open "/Applications/NTFY Tray.app"'
             ])
             QtWidgets.QApplication.quit()
         elif system == "Windows":
